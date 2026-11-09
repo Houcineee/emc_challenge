@@ -8,7 +8,7 @@ Symfony 7.4, PHP >= 8.2, MySQL 8, Doctrine ORM + migrations. Deadline: Sun 2026-
 
 ## Git
 - Small, focused commits with explicit messages (conventional style: `feat:`, `fix:`, `test:`, `docs:`, `chore:`).
-- Flag AI-written code: `Co-authored-by` trailer or an `[ai]` prefix.
+- AI-written commits carry a `Co-authored-by: Antigravity <noreply@google.com>` trailer. Commits the user writes by hand (decision docs, etc.) carry none. The user owns design and decisions; the AI writes code from their specification.
 - Never squash, rebase, amend pushed commits, or force-push `main`. History must stay intact.
 - Push often.
 
