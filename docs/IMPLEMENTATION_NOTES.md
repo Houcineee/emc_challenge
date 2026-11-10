@@ -4,12 +4,31 @@ Ce fichier regroupe les détails techniques, algorithmes et cas limites discuté
 
 ---
 
-## 1. Rôles et autorisations
+## 1. Rôles et autorisations (Unicité stricte du rôle par utilisateur)
 
-3 rôles uniquement :
-- `ROLE_BUYER` (Acheteur) : consulte les représentations, réserve des places, applique un coupon, paie ses billets, consulte son historique.
-- `ROLE_ORGANIZER` (Organisateur) : crée/configure ses représentations, choisit si chaque zone est assise ou debout (`is_seated`), fixe le prix de base par zone, crée et gère les coupons de réduction, peut annuler une représentation.
-- `ROLE_ADMIN` (Administrateur) : gère l'infrastructure / la salle et les comptes, mais **n'a aucun droit sur les prix, les coupons ou l'émission de billets gratuits**.
+Chaque utilisateur possède **un seul et unique rôle** (jamais 2 ou 3 rôles en même temps) :
+- `BUYER` (`ROLE_BUYER`) : consulte les représentations, réserve des places, applique un coupon, paie ses billets, consulte son historique.
+- `ORGANIZER` (`ROLE_ORGANIZER`) : crée/configure ses représentations, choisit si chaque zone est assise ou debout (`is_seated`), fixe le prix de base par zone, crée et gère les coupons de réduction, peut annuler une représentation.
+- `ADMIN` (`ROLE_ADMIN`) : gère la plateforme et les comptes, mais **n'a aucun droit sur les prix, les coupons ou l'émission de billets gratuits**.
+
+**Implémentation dans `src/Entity/User.php` (Symfony `UserInterface`)** :
+- Ne pas utiliser la colonne `json $roles` générée par défaut par `make:user`.
+- Utiliser une colonne scalaire typée par l'enum PHP 8.2 `UserRole` :
+  ```php
+  #[ORM\Column(enumType: UserRole::class)]
+  private UserRole $role;
+
+  public function getRole(): UserRole
+  {
+      return $this->role;
+  }
+
+  public function getRoles(): array
+  {
+      return ['ROLE_' . $this->role->value];
+  }
+  ```
+- Ainsi, `getRoles()` retourne un tableau à 1 seul élément (`['ROLE_BUYER']`, `['ROLE_ORGANIZER']` ou `['ROLE_ADMIN']`) sans injecter `'ROLE_USER'` par défaut et sans permettre le cumul de rôles.
 
 ---
 
@@ -21,12 +40,11 @@ Ce fichier regroupe les détails techniques, algorithmes et cas limites discuté
   - Invitation / Gratuit (VIP, presse) : coupon à `-100%` (à usage unique ou limité).
   - Réduction de dernière minute (ex. 1h avant la séance) : remise automatique ou coupon promotionnel.
 - **Snapshot du prix sur `Ticket`** :
-  - Au moment de l'achat, on enregistre dans la table `ticket` :
-    - `base_price` (prix de base au moment de l'achat)
-    - `discount_amount` (montant de la réduction appliquée)
-    - `final_price` (montant réellement payé)
-    - `coupon_id` (nullable, référence au coupon utilisé pour traçabilité)
-  - Si l'organisateur modifie le prix de la zone ou le pourcentage du coupon plus tard, les billets déjà vendus ne changent jamais de prix.
+  - Au moment de l'achat, on enregistre dans la table `tickets` :
+    - `base_price_cents` (prix de base de la zone figé au moment de l'achat)
+    - `coupon_id` (nullable, référence au coupon utilisé dont `discount_percent` donne la remise de 1 à 100 %)
+  - Le prix net payé est calculé par `base_price_cents * (100 - discount_percent) / 100` (sans colonne `final_price_cents` ni `discount_percent` dupliquée dans `tickets`).
+  - Le nombre d'utilisations d'un coupon est calculé par `COUNT(*)` sur `tickets` (`WHERE coupon_id = :id AND status = 'PAID'`), avec `SELECT * FROM coupons WHERE id = :id FOR UPDATE` au moment du paiement pour garantir le respect de `max_uses` sans colonne `used_count` redondante.
 
 ---
 
