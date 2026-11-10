@@ -1,16 +1,18 @@
 # Modèle de données
 
-Ce document présente le schéma relationnel MySQL 8 de la billetterie pour une salle de spectacle modulable de 400 places, ainsi que la justification des choix de normalisation et d'intégrité.
+Ce document décrit le schéma relationnel MySQL 8 de la billetterie pour une salle de spectacle unique de 400 places modulables, ainsi que la justification des choix de normalisation et d'intégrité.
 
 ## 1. Diagramme Entité-Relation (Mermaid)
 
 ```mermaid
 erDiagram
-    users ||--o{ representations : "organizes (ORGANIZER)"
-    users ||--o{ tickets : "buys (BUYER)"
-    representations ||--|{ representation_zones : "configures"
-    representations ||--o{ coupons : "offers"
-    representations ||--o{ tickets : "sells"
+    users ||--o{ tickets : "purchases / issues"
+    event_types ||--|{ configurations : "defines"
+    event_types ||--o{ events : "categorizes"
+    zones ||--|{ configurations : "configured in"
+    zones ||--|{ seats : "contains"
+    events ||--o{ coupons : "offers"
+    events ||--o{ tickets : "sells"
     seats ||--o{ tickets : "assigned to"
     coupons ||--o{ tickets : "applied to"
 
@@ -18,39 +20,51 @@ erDiagram
         int id PK
         varchar email UK "NOT NULL"
         varchar password_hash "NOT NULL"
-        enum role "BUYER | ORGANIZER | ADMIN"
+        enum role "CLIENT | CASHIER | ADMIN"
         datetime created_at "NOT NULL"
+    }
+
+    zones {
+        int id PK
+        enum name UK "FRONT_STAGE | ORCHESTRA | LEFT_BOX | RIGHT_BOX | BALCONY"
+        int capacity "NOT NULL"
+        int price_multiplier_percent "NOT NULL (ex: 0, 20, 50, 100)"
     }
 
     seats {
         int id PK
-        enum zone "FRONT_STAGE | ORCHESTRA | LEFT_BOX | RIGHT_BOX | BALCONY"
-        varchar row_label "NOT NULL, UK(zone, row_label, seat_number)"
-        int seat_number "NOT NULL, UK(zone, row_label, seat_number)"
+        int zone_id FK "NOT NULL"
+        varchar row_label "NOT NULL, UK(zone_id, row_label, seat_number)"
+        int seat_number "NOT NULL, UK(zone_id, row_label, seat_number)"
     }
 
-    representations {
+    event_types {
         int id PK
-        int organizer_id FK "NOT NULL"
+        varchar name UK "NOT NULL (CONCERT | THEATRE | CONFERENCE)"
+    }
+
+    configurations {
+        int id PK
+        int zone_id FK "NOT NULL, UK(zone_id, event_type_id)"
+        int event_type_id FK "NOT NULL, UK(zone_id, event_type_id)"
+        boolean is_seated "NOT NULL (true = chaises 3D, false = fosse debout)"
+    }
+
+    events {
+        int id PK
+        int event_type_id FK "NOT NULL"
         varchar title "NOT NULL"
-        enum type "CONCERT | THEATRE | CONFERENCE"
+        text description "NOT NULL"
+        int base_price_cents "NOT NULL"
         datetime starts_at "NOT NULL"
         enum status "SCHEDULED | CANCELLED"
         datetime created_at "NOT NULL"
     }
 
-    representation_zones {
-        int id PK
-        int representation_id FK "NOT NULL, UK(representation_id, zone)"
-        enum zone "FRONT_STAGE | ORCHESTRA | LEFT_BOX | RIGHT_BOX | BALCONY"
-        int base_price_cents "NOT NULL"
-        boolean is_seated "NOT NULL (true = chaises, false = sans siege)"
-    }
-
     coupons {
         int id PK
-        int representation_id FK "NOT NULL, UK(representation_id, code)"
-        varchar code "NOT NULL, UK(representation_id, code)"
+        int event_id FK "NOT NULL, UK(event_id, code)"
+        varchar code "NOT NULL, UK(event_id, code)"
         int discount_percent "NOT NULL (1 a 100)"
         int max_uses "NOT NULL"
         datetime valid_from "NOT NULL"
@@ -59,11 +73,11 @@ erDiagram
 
     tickets {
         int id PK
-        int representation_id FK "NOT NULL, UK(representation_id, seat_id)"
-        int seat_id FK "NOT NULL, UK(representation_id, seat_id)"
-        int buyer_id FK "NOT NULL"
+        int event_id FK "NOT NULL, UK(event_id, seat_id)"
+        int seat_id FK "NOT NULL, UK(event_id, seat_id)"
+        int user_id FK "NOT NULL (CLIENT ou CASHIER)"
         int coupon_id FK "NULLABLE"
-        int base_price_cents "NOT NULL"
+        int final_price_cents "NOT NULL (snapshot paye)"
         enum status "PAID | REFUNDED"
         datetime paid_at "NOT NULL"
     }
@@ -71,36 +85,46 @@ erDiagram
 
 ## 2. Énumérations du domaine (PHP 8.2 Backed Enums)
 
-Les valeurs fermées du domaine sont modélisées par des énumérations typées :
+Les domaines finis et contrôlés sont modélisés par des enums PHP 8.2 :
 
-- **`UserRole`** : `BUYER`, `ORGANIZER`, `ADMIN`.
-- **`ZoneName`** : découpe les 400 places de la salle unique en 5 volumes architecturaux pour le plan et la vue 3D :
+- **`UserRole`** :
+  - `CLIENT` : utilisateur grand public achetant en ligne.
+  - `CASHIER` : guichetier vendant sur place (au comptoir ou par téléphone).
+  - `ADMIN` : direction de la salle (création d'événements, gestion des prix et de la salle).
+- **`ZoneName`** : les 5 zones architecturales formant les 400 places de la salle :
   - `FRONT_STAGE` (Avant-scène / Fosse, 80 places)
   - `ORCHESTRA` (Parterre central, 160 places)
-  - `LEFT_BOX` (Loges gauche, 30 places)
-  - `RIGHT_BOX` (Loges droite, 30 places)
+  - `LEFT_BOX` (Loges gauches, 30 places)
+  - `RIGHT_BOX` (Loges droites, 30 places)
   - `BALCONY` (Grand balcon haut, 100 places)
-- **`EventType`** : `CONCERT`, `THEATRE`, `CONFERENCE`.
-- **`RepresentationStatus`** : `SCHEDULED`, `CANCELLED`.
+- **`EventStatus`** : `SCHEDULED`, `CANCELLED`.
 - **`TicketStatus`** : `PAID`, `REFUNDED`.
 
-## 3. Justification des choix de conception
+## 3. Justification des choix de conception et 3NF
 
-### Absence des tables `venues` et `zones`
-L'énoncé porte sur une salle de spectacle unique de 400 places. Créer une table `venues` à une seule ligne ou une table `zones` figée à 5 lignes imposerait des jointures SQL sans valeur fonctionnelle. L'énumération `ZoneName` appliquée directement sur `seats.zone` et `representation_zones.zone` garantit que les 400 sièges se répartissent exactement sur les 5 zones connues du modèle 3D.
+### A. Modularité de la salle via `event_types` et `configurations`
+La salle physique compte exactement 400 places réparties sur 5 zones pérennes (`zones` et `seats`).
+Pour répondre à l'exigence de modularité (*concerts, pièces de théâtre et conférences*) :
+- La table **`event_types`** répertorie les types d'événements autorisés (`CONCERT`, `THEATRE`, `CONFERENCE`).
+- La table **`configurations`** associe chaque zone à un type d'événement avec le booléen `is_seated`.
+  - Exemple : pour `CONCERT`, `FRONT_STAGE` a `is_seated = false` (fosse debout), tandis que les autres zones restent assises (`is_seated = true`).
+  - Pour `THEATRE`, les 5 zones ont `is_seated = true` (100% assis).
+- Ce design évite d'encoder des noms de zones dans des colonnes booléennes (suppression de l'anti-pattern *Repeating Groups* / 1NF) et garantit une intégrité référentielle complète via des clés étrangères `zone_id` et `event_type_id`.
 
-### Configuration par représentation (`representation_zones`)
-Une même salle accueille des pièces de théâtre entièrement assises et des concerts avec fosse debout. La table `representation_zones` relie chaque représentation aux 5 zones de la salle avec deux paramètres choisis par l'organisateur :
-1. **`base_price_cents`** : le tarif plein de la zone en centimes (évite les erreurs d'arrondi en virgule flottante).
-2. **`is_seated`** : indique si la zone comporte des fauteuils numérotés (`true`) ou un placement libre debout (`false`).
+### B. Tarification par zone via multiplicateur (`price_multiplier_percent`)
+Au lieu de maintenir 5 colonnes de prix par événement ou une table intermédiaire volumineuse :
+- Chaque événement définit son **prix de base unique** : `events.base_price_cents`.
+- Chaque zone applique un **multiplicateur fixe** : `zones.price_multiplier_percent` (ex: `0%` pour Balcon, `+20%` pour Fosse, `+50%` pour Orchestre, `+100%` pour Loges VIP).
+- Le prix unitaire d'un siège se calcule sans ambiguïté : 
+  $$\text{Prix zone} = \text{base\_price\_cents} \times \frac{100 + \text{price\_multiplier\_percent}}{100}$$
+- Lors de l'achat, le montant final payé (après déduction éventuelle du coupon) est figé dans `tickets.final_price_cents`. Ce snapshot comptable garantit qu'une mise à jour ultérieure des tarifs n'altère jamais les billets déjà émis.
 
-En base de données, chaque place vendue pointe toujours vers un enregistrement `seats` précis (`tickets.seat_id NOT NULL`). Ce choix élimine les colonnes nulles dans `tickets`, conserve le fonctionnement de la contrainte `UNIQUE(representation_id, seat_id)` en MySQL (où `NULL != NULL` désactiverait l'unicité), et unifie l'algorithme de réservation. Lorsque `is_seated` vaut `false`, l'interface 3D et le billet imprimé masquent simplement le numéro de siège.
+### C. Unicité du siège et zéro `NULL`
+Même en configuration fosse debout (`is_seated = false`), chaque place reste matérialisée par une entrée dans la table `seats`.
+- `tickets.seat_id` est strictement `NOT NULL`.
+- L'index `UNIQUE(event_id, seat_id)` sur `tickets` protège nativement contre la double vente sous MySQL InnoDB.
+- Lors de l'affichage ou de l'impression du billet, si `is_seated = false`, le numéro du siège est masqué pour indiquer *Placement libre / Fosse*.
 
-### Normalisation des prix et des coupons (3NF)
-- **Aucune colonne calculée redondante dans `tickets`** : la table `tickets` stocke `base_price_cents` (figé au moment de l'achat pour que la modification ultérieure du tarif d'une zone n'affecte jamais les billets déjà vendus) et la clé étrangère optionnelle `coupon_id`. Le pourcentage de réduction est lu sur `coupons.discount_percent`, et le montant net payé est calculé par `base_price_cents * (100 - discount_percent) / 100`.
-- **Absence de compteur `used_count` dénormalisé sur `coupons`** : le nombre d'utilisations d'un coupon est obtenu par `COUNT(*)` sur les billets `PAID` associés à `coupon_id`. Lorsqu'une représentation est annulée et que ses billets passent à `REFUNDED`, le décompte se met à jour sans maintenance manuelle. Lors d'un achat avec coupon, la ligne `coupons` est verrouillée (`SELECT ... FOR UPDATE`) pendant la transaction pour respecter `max_uses` en cas d'achats simultanés.
-
-### Séparation entre blocage temporaire (Redis) et vente comptable (MySQL)
-MySQL 8 ne supporte pas les index uniques partiels (`WHERE`). Stocker des réservations temporaires de 15 minutes et leurs expirations dans la table `tickets` encombrerait l'arbre B-Tree de l'index `UNIQUE(representation_id, seat_id)` avec des paniers abandonnés.
-- Les blocages temporaires de 15 minutes sont stockés en mémoire dans **Redis** via la commande atomique `SET hold:rep:{repId}:seat:{seatId} {buyerId} NX EX 900`.
-- La table MySQL **`tickets`** ne reçoit un `INSERT` qu'à la validation effective du paiement (`PAID`), avec la contrainte `UNIQUE(representation_id, seat_id)` comme garantie finale d'intégrité.
+### D. Réservations temporaires et concurrence (Redis + MySQL)
+- Le panier temporaire de 15 minutes est géré en mémoire vive dans **Redis** via `SET hold:event:{id}:seat:{id} {userId} NX EX 900`.
+- MySQL n'enregistre que les billets confirmés et payés (`tickets`), évitant ainsi d'encombrer l'index B-Tree avec des réservations expirées ou abandonnées.
