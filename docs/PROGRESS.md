@@ -9,7 +9,7 @@ Ce document synthétise l'état exact du projet pour permettre à tout agent ou 
 | Niveau | Thème | Statut | Détails |
 |---|---|---|---|
 | **1** | **Modéliser** | **FAIT** | 4 Enums, 8 Entités Doctrine (3NF), Migration appliquée, 400 sièges et données de démo chargées. |
-| **2** | **Faire respecter les règles** | **FAIT** | Verrou temporaire 15 min (Redis), service de billetterie transactionnel MySQL, API REST complète (19 routes), 20 tests automatisés PHPUnit (117 assertions, 100% au vert). |
+| **2** | **Faire respecter les règles** | **FAIT** | Verrou temporaire 15 min (Redis), service de billetterie transactionnel MySQL, idempotence stricte au paiement (`Idempotency-Key`), API REST complète (19 routes), 21 tests automatisés PHPUnit (125 assertions, 100% au vert). |
 | **3** | **En faire un produit** | **EN COURS** | Plan de salle 3D Three.js procédural interactif, parcours d'achat complet, billet QR code, interfaces guichet et admin. |
 | **4** | **API externe (Google Sheets)** | **À FAIRE** | Synchronisation des ventes et remplissage vers Google Sheets. |
 | **5** | **Livrer (Docker, INSTALL.md)** | **À FAIRE** | Finalisation du packaging Docker et documentation d'installation. |
