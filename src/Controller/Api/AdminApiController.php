@@ -49,6 +49,72 @@ class AdminApiController extends AbstractController
         ], Response::HTTP_OK);
     }
 
+    #[Route('/events', name: 'create_event', methods: ['POST'])]
+    public function createEvent(Request $request): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse([
+                'error' => 'Accès refusé. Action réservée aux administrateurs.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['error' => 'Corps de requête JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $title = trim((string) ($data['title'] ?? ''));
+        $description = trim((string) ($data['description'] ?? ''));
+        $eventTypeId = (int) ($data['eventTypeId'] ?? 0);
+        $basePriceCents = (int) ($data['basePriceCents'] ?? 0);
+        $startsAtStr = (string) ($data['startsAt'] ?? '');
+
+        if ($title === '' || $eventTypeId <= 0 || $basePriceCents <= 0 || $startsAtStr === '') {
+            return new JsonResponse([
+                'error' => 'Champs obligatoires manquants ou invalides (title, eventTypeId, basePriceCents, startsAt).',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $eventType = $this->em->getRepository(\App\Entity\EventType::class)->find($eventTypeId);
+        if ($eventType === null) {
+            return new JsonResponse(['error' => 'Type d\'événement introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $startsAt = new \DateTimeImmutable($startsAtStr);
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'Format de date invalide (ISO 8601 requis).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $event = new Event();
+        $event->setTitle($title);
+        $event->setDescription($description);
+        $event->setEventType($eventType);
+        $event->setBasePriceCents($basePriceCents);
+        $event->setStartsAt($startsAt);
+        $event->setStatus(\App\Enum\EventStatus::SCHEDULED);
+
+        $this->em->persist($event);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Événement créé avec succès.',
+            'event' => [
+                'id' => $event->getId(),
+                'title' => $event->getTitle(),
+                'description' => $event->getDescription(),
+                'basePriceCents' => $event->getBasePriceCents(),
+                'startsAt' => $event->getStartsAt()?->format(\DateTimeInterface::ATOM),
+                'status' => $event->getStatus()?->value,
+                'eventType' => [
+                    'id' => $eventType->getId(),
+                    'name' => $eventType->getName(),
+                ],
+            ],
+        ], Response::HTTP_CREATED);
+    }
+
     #[Route('/coupons', name: 'create_coupon', methods: ['POST'])]
     public function createCoupon(Request $request): JsonResponse
     {

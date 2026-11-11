@@ -281,4 +281,170 @@ class ApiEndpointsTest extends WebTestCase
         );
         $this->assertResponseStatusCodeSame(403);
     }
+
+    public function testClientCanViewTheirTickets(): void
+    {
+        $client = static::createClient();
+
+        // 1. Quick Login as CLIENT
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'CLIENT'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // 2. Fetch my tickets
+        $client->request('GET', '/api/tickets/my');
+        $this->assertResponseIsSuccessful();
+        $tickets = json_decode($client->getResponse()->getContent(), true);
+        $this->assertIsArray($tickets);
+
+        if (!empty($tickets)) {
+            $t = $tickets[0];
+            $this->assertArrayHasKey('id', $t);
+            $this->assertArrayHasKey('status', $t);
+            $this->assertArrayHasKey('finalPriceCents', $t);
+            $this->assertArrayHasKey('qrPayload', $t);
+            $this->assertArrayHasKey('event', $t);
+            $this->assertArrayHasKey('seat', $t);
+            $this->assertMatchesRegularExpression('/^EMC-\d+-\d+$/', $t['qrPayload']);
+        }
+    }
+
+    public function testAdminCanCreateScheduledEvent(): void
+    {
+        $client = static::createClient();
+
+        // 1. Quick Login as ADMIN
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'ADMIN'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // 2. Create Event
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $eventType = $em->getRepository(\App\Entity\EventType::class)->findOneBy([]);
+        $this->assertNotNull($eventType);
+        $eventTypeId = $eventType->getId();
+
+        $client->request(
+            'POST',
+            '/api/admin/events',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'title' => 'Festival Jazz & Rhythms',
+                'description' => 'Concert de clôture en plein air.',
+                'eventTypeId' => $eventTypeId,
+                'basePriceCents' => 25000,
+                'startsAt' => (new \DateTimeImmutable('+45 days'))->format(\DateTimeInterface::ATOM),
+            ])
+        );
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertSame('Festival Jazz & Rhythms', $data['event']['title']);
+        $this->assertSame('SCHEDULED', $data['event']['status']);
+
+        // 3. Client cannot create event -> 403 Forbidden
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'CLIENT'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        $client->request(
+            'POST',
+            '/api/admin/events',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'title' => 'Unauthorized Event',
+                'eventTypeId' => $eventTypeId,
+                'basePriceCents' => 10000,
+                'startsAt' => (new \DateTimeImmutable('+10 days'))->format(\DateTimeInterface::ATOM),
+            ])
+        );
+        $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testCashierCanVerifyTicketQrCode(): void
+    {
+        $client = static::createClient();
+
+        // 1. Quick Login as CASHIER
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'CASHIER'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // 2. Verify a PAID ticket
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $paidTicket = $em->getRepository(Ticket::class)->findOneBy(['status' => TicketStatus::PAID]);
+
+        if ($paidTicket !== null) {
+            $qrPayload = sprintf('EMC-%d-%d', $paidTicket->getEvent()->getId(), $paidTicket->getId());
+            $client->request(
+                'POST',
+                '/api/cashier/verify-ticket',
+                [],
+                [],
+                ['CONTENT_TYPE' => 'application/json'],
+                json_encode(['qrPayload' => $qrPayload])
+            );
+            $this->assertResponseIsSuccessful();
+            $data = json_decode($client->getResponse()->getContent(), true);
+            $this->assertTrue($data['valid']);
+            $this->assertSame('PAID', $data['status']);
+        }
+
+        // 3. Verify a REFUNDED ticket
+        $refundedTicket = $em->getRepository(Ticket::class)->findOneBy(['status' => TicketStatus::REFUNDED]);
+        if ($refundedTicket !== null) {
+            $qrPayload = sprintf('EMC-%d-%d', $refundedTicket->getEvent()->getId(), $refundedTicket->getId());
+            $client->request(
+                'POST',
+                '/api/cashier/verify-ticket',
+                [],
+                [],
+                ['CONTENT_TYPE' => 'application/json'],
+                json_encode(['qrPayload' => $qrPayload])
+            );
+            $this->assertResponseIsSuccessful();
+            $data = json_decode($client->getResponse()->getContent(), true);
+            $this->assertFalse($data['valid']);
+            $this->assertSame('REFUNDED', $data['status']);
+        }
+
+        // 4. Non-existent ticket -> 404
+        $client->request(
+            'POST',
+            '/api/cashier/verify-ticket',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['qrPayload' => 'EMC-999-999999'])
+        );
+        $this->assertResponseStatusCodeSame(404);
+    }
 }
