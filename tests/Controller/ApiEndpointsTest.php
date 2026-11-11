@@ -191,4 +191,94 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertArrayHasKey('totalSeatsInHall', $data);
         $this->assertArrayHasKey('events', $data);
     }
+
+    public function testAdminCanCreateAndListCoupons(): void
+    {
+        $client = static::createClient();
+
+        // 1. Quick Login as ADMIN
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'ADMIN'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // Get an active event
+        $client->request('GET', '/api/events');
+        $events = json_decode($client->getResponse()->getContent(), true);
+        $eventId = (int) $events[0]['id'];
+
+        $testCode = 'TESTVIP' . mt_rand(1000, 9999);
+
+        // 2. Create coupon
+        $client->request(
+            'POST',
+            '/api/admin/coupons',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $eventId,
+                'code' => $testCode,
+                'discountPercent' => 100,
+                'maxUses' => 5,
+            ])
+        );
+        $this->assertResponseStatusCodeSame(201);
+        $createdData = json_decode($client->getResponse()->getContent(), true);
+        $this->assertTrue($createdData['success']);
+        $this->assertSame($testCode, $createdData['coupon']['code']);
+        $this->assertSame(100, $createdData['coupon']['discountPercent']);
+
+        // 3. Duplicate creation on same event -> must return 409 Conflict
+        $client->request(
+            'POST',
+            '/api/admin/coupons',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $eventId,
+                'code' => $testCode,
+                'discountPercent' => 50,
+            ])
+        );
+        $this->assertResponseStatusCodeSame(409);
+
+        // 4. List coupons
+        $client->request('GET', '/api/admin/coupons');
+        $this->assertResponseIsSuccessful();
+        $couponsList = json_decode($client->getResponse()->getContent(), true);
+        $codes = array_column($couponsList, 'code');
+        $this->assertContains($testCode, $codes);
+
+        // 5. Client role cannot create coupon -> 403 Forbidden
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'CLIENT'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        $client->request(
+            'POST',
+            '/api/admin/coupons',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $eventId,
+                'code' => 'FORBIDDEN',
+                'discountPercent' => 20,
+            ])
+        );
+        $this->assertResponseStatusCodeSame(403);
+    }
 }

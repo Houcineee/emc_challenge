@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Entity\Coupon;
 use App\Entity\Event;
 use App\Entity\Seat;
 use App\Entity\Ticket;
@@ -12,6 +13,7 @@ use App\Service\TicketingService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -45,6 +47,129 @@ class AdminApiController extends AbstractController
             'message' => 'Événement annulé.',
             'refundedTicketsCount' => $refundedCount,
         ], Response::HTTP_OK);
+    }
+
+    #[Route('/coupons', name: 'create_coupon', methods: ['POST'])]
+    public function createCoupon(Request $request): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse([
+                'error' => 'Accès refusé. Action réservée aux administrateurs.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['error' => 'Corps de requête JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $eventId = (int) ($data['eventId'] ?? 0);
+        $code = strtoupper(trim((string) ($data['code'] ?? '')));
+        $discountPercent = (int) ($data['discountPercent'] ?? 0);
+        $maxUses = isset($data['maxUses']) && $data['maxUses'] !== null ? (int) $data['maxUses'] : null;
+
+        if ($eventId <= 0 || $code === '' || $discountPercent <= 0 || $discountPercent > 100) {
+            return new JsonResponse([
+                'error' => 'Champs obligatoires invalides (eventId, code, discountPercent entre 1 et 100).',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $event = $this->em->getRepository(Event::class)->find($eventId);
+        if ($event === null) {
+            return new JsonResponse(['error' => 'Événement non trouvé.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $existingCoupon = $this->em->getRepository(Coupon::class)->findOneBy([
+            'event' => $event,
+            'code' => $code,
+        ]);
+        if ($existingCoupon !== null) {
+            return new JsonResponse([
+                'error' => sprintf('Un coupon avec le code "%s" existe déjà pour cet événement.', $code),
+            ], Response::HTTP_CONFLICT);
+        }
+
+        $validFromStr = $data['validFrom'] ?? null;
+        $validUntilStr = $data['validUntil'] ?? null;
+
+        $validFrom = $validFromStr ? new \DateTimeImmutable((string) $validFromStr) : new \DateTimeImmutable('-1 hour');
+        $validUntil = $validUntilStr
+            ? new \DateTimeImmutable((string) $validUntilStr)
+            : ($event->getStartsAt() ?? new \DateTimeImmutable('+30 days'));
+
+        $coupon = new Coupon();
+        $coupon->setEvent($event);
+        $coupon->setCode($code);
+        $coupon->setDiscountPercent($discountPercent);
+        $coupon->setMaxUses($maxUses);
+        $coupon->setValidFrom($validFrom);
+        $coupon->setValidUntil($validUntil);
+
+        $this->em->persist($coupon);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Coupon créé avec succès.',
+            'coupon' => [
+                'id' => $coupon->getId(),
+                'eventId' => $event->getId(),
+                'eventTitle' => $event->getTitle(),
+                'code' => $coupon->getCode(),
+                'discountPercent' => $coupon->getDiscountPercent(),
+                'maxUses' => $coupon->getMaxUses(),
+                'validFrom' => $coupon->getValidFrom()?->format(\DateTimeInterface::ATOM),
+                'validUntil' => $coupon->getValidUntil()?->format(\DateTimeInterface::ATOM),
+            ],
+        ], Response::HTTP_CREATED);
+    }
+
+    #[Route('/coupons', name: 'list_coupons', methods: ['GET'])]
+    public function listCoupons(Request $request): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN') && !$this->isGranted('ROLE_CASHIER')) {
+            return new JsonResponse([
+                'error' => 'Accès refusé. Réservé aux administrateurs et guichetiers.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $eventId = $request->query->getInt('eventId');
+        $criteria = $eventId > 0 ? ['event' => $eventId] : [];
+
+        $coupons = $this->em->getRepository(Coupon::class)->findBy($criteria, ['id' => 'DESC']);
+
+        $usedCountsRows = $this->em->createQueryBuilder()
+            ->select('IDENTITY(t.coupon) as couponId, COUNT(t.id) as usedCount')
+            ->from(Ticket::class, 't')
+            ->where('t.coupon IS NOT NULL')
+            ->andWhere('t.status = :status')
+            ->setParameter('status', TicketStatus::PAID)
+            ->groupBy('t.coupon')
+            ->getQuery()
+            ->getResult();
+
+        $usedMap = [];
+        foreach ($usedCountsRows as $row) {
+            $usedMap[(int) $row['couponId']] = (int) $row['usedCount'];
+        }
+
+        $formatted = array_map(static function (Coupon $c) use ($usedMap): array {
+            $cid = (int) $c->getId();
+
+            return [
+                'id' => $cid,
+                'eventId' => $c->getEvent()?->getId(),
+                'eventTitle' => $c->getEvent()?->getTitle(),
+                'code' => $c->getCode(),
+                'discountPercent' => $c->getDiscountPercent(),
+                'maxUses' => $c->getMaxUses(),
+                'usedCount' => $usedMap[$cid] ?? 0,
+                'validFrom' => $c->getValidFrom()?->format(\DateTimeInterface::ATOM),
+                'validUntil' => $c->getValidUntil()?->format(\DateTimeInterface::ATOM),
+            ];
+        }, $coupons);
+
+        return new JsonResponse($formatted, Response::HTTP_OK);
     }
 
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
