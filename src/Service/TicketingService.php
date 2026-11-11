@@ -112,6 +112,8 @@ class TicketingService
                 $tickets[] = $ticket;
             }
 
+            $this->em->flush();
+
             return $tickets;
         });
 
