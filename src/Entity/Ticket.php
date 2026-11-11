@@ -136,4 +136,16 @@ class Ticket
 
         return $this;
     }
+
+    public function getPurchasedAt(): ?\DateTimeImmutable
+    {
+        return $this->paidAt;
+    }
+
+    public function setPurchasedAt(\DateTimeImmutable $purchasedAt): static
+    {
+        $this->paidAt = $purchasedAt;
+
+        return $this;
+    }
 }

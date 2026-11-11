@@ -19,5 +19,12 @@ services:
     App\:
         resource: '../src/'
 
+    Predis\ClientInterface:
+        class: Predis\Client
+        arguments:
+            - '%env(REDIS_URL)%'
+
+    Predis\Client: '@Predis\ClientInterface'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

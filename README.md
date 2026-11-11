@@ -7,14 +7,14 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
 | Niveau | Thème | État |
 |---|---|---|
 | 1 | Modéliser | Fait |
-| 2 | Faire respecter les règles | À faire |
-| 3 | En faire un produit | À faire |
+| 2 | Faire respecter les règles | Fait |
+| 3 | En faire un produit | En cours |
 | 4 | API externe (Google Sheets) | À faire |
 | 5 | Livrer (Docker, INSTALL.md) | À faire |
 
 ## Lancer le projet
 
-1. **Démarrer les conteneurs (PHP 8.2 & MySQL 8.0)** :
+1. **Démarrer les conteneurs (PHP 8.2, MySQL 8.0 & Redis 7)** :
    ```bash
    docker compose up -d
    ```
@@ -26,5 +26,9 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
    ```bash
    docker exec emc_app php bin/console doctrine:fixtures:load --no-interaction
    ```
-4. **Accéder à l'application** :
+4. **Exécuter la suite de tests automatisés (16 tests, 81 assertions)** :
+   ```bash
+   docker exec emc_app php bin/phpunit
+   ```
+5. **Accéder à l'application** :
    L'application répond sur `http://localhost:8000`.

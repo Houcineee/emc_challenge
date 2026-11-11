@@ -61,6 +61,11 @@ class Seat
         return $this->rowLabel;
     }
 
+    public function getRow(): ?string
+    {
+        return $this->rowLabel;
+    }
+
     public function setRowLabel(string $rowLabel): static
     {
         $this->rowLabel = $rowLabel;
@@ -69,6 +74,11 @@ class Seat
     }
 
     public function getSeatNumber(): ?int
+    {
+        return $this->seatNumber;
+    }
+
+    public function getNumber(): ?int
     {
         return $this->seatNumber;
     }
