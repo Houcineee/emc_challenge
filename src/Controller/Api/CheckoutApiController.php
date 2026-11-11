@@ -15,6 +15,7 @@ use App\Exception\InvalidCouponException;
 use App\Service\TicketingService;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Predis\ClientInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -28,6 +29,7 @@ class CheckoutApiController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly TicketingService $ticketingService,
         private readonly Security $security,
+        private readonly ClientInterface $redis,
     ) {
     }
 
@@ -120,23 +122,67 @@ class CheckoutApiController extends AbstractController
             ? trim((string) $data['couponCode'])
             : null;
 
+        // Idempotency Key handling (Header 'Idempotency-Key' or body field 'idempotencyKey')
+        $idempotencyKey = trim((string) ($request->headers->get('Idempotency-Key') ?? ($data['idempotencyKey'] ?? '')));
+        $idempRedisKey = null;
+
+        if ($idempotencyKey !== '') {
+            $idempRedisKey = sprintf('idemp:checkout:%d:%s', $user->getId(), substr($idempotencyKey, 0, 64));
+            $cached = $this->redis->get($idempRedisKey);
+
+            if ($cached !== null) {
+                if ((string) $cached === 'PROCESSING') {
+                    return new JsonResponse([
+                        'error' => 'Une transaction identique est actuellement en cours de traitement. Veuillez patienter.',
+                    ], Response::HTTP_CONFLICT);
+                }
+
+                $cachedPayload = json_decode((string) $cached, true);
+                if (is_array($cachedPayload)) {
+                    return new JsonResponse($cachedPayload, Response::HTTP_CREATED, [
+                        'X-Idempotent-Replay' => 'true',
+                    ]);
+                }
+            }
+
+            // Lock idempotency key in PROCESSING state for 120 seconds
+            $lockAcquired = $this->redis->set($idempRedisKey, 'PROCESSING', 'EX', 120, 'NX');
+            if ($lockAcquired === null || (string) $lockAcquired !== 'OK') {
+                return new JsonResponse([
+                    'error' => 'Une transaction identique est actuellement en cours de traitement. Veuillez patienter.',
+                ], Response::HTTP_CONFLICT);
+            }
+        }
+
         $event = $this->em->getRepository(Event::class)->find($eventId);
         if ($event === null) {
+            if ($idempRedisKey !== null) {
+                $this->redis->del([$idempRedisKey]);
+            }
+
             return new JsonResponse(['error' => 'Événement non trouvé.'], Response::HTTP_NOT_FOUND);
         }
 
         try {
             $tickets = $this->ticketingService->purchase($event, $seatIds, $user, $couponCode);
-        } catch (HoldExpiredException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_GONE);
-        } catch (InvalidCouponException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
-        } catch (DomainException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
-        } catch (UniqueConstraintViolationException) {
-            return new JsonResponse([
-                'error' => 'Conflit d\'achat simultané détecté. La contrainte de base de données a empêché la double vente.',
-            ], Response::HTTP_CONFLICT);
+        } catch (\Throwable $e) {
+            if ($idempRedisKey !== null) {
+                $this->redis->del([$idempRedisKey]);
+            }
+
+            if ($e instanceof HoldExpiredException) {
+                return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_GONE);
+            }
+            if ($e instanceof InvalidCouponException || $e instanceof DomainException) {
+                return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            }
+            if ($e instanceof UniqueConstraintViolationException) {
+                return new JsonResponse([
+                    'error' => 'Conflit d\'achat simultané détecté. La contrainte de base de données a empêché la double vente.',
+                ], Response::HTTP_CONFLICT);
+            }
+
+            throw $e;
         }
 
         $formattedTickets = [];
@@ -155,10 +201,17 @@ class CheckoutApiController extends AbstractController
             ];
         }
 
-        return new JsonResponse([
+        $responsePayload = [
             'success' => true,
             'message' => 'Achat validé avec succès.',
             'tickets' => $formattedTickets,
-        ], Response::HTTP_CREATED);
+        ];
+
+        if ($idempRedisKey !== null) {
+            // Cache successful checkout result for 24 hours
+            $this->redis->set($idempRedisKey, json_encode($responsePayload), 'EX', 86400);
+        }
+
+        return new JsonResponse($responsePayload, Response::HTTP_CREATED);
     }
 }

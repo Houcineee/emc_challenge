@@ -447,4 +447,96 @@ class ApiEndpointsTest extends WebTestCase
         );
         $this->assertResponseStatusCodeSame(404);
     }
+
+    public function testCheckoutWithIdempotencyKeyReturnsSameResultOnDoubleSubmit(): void
+    {
+        $client = static::createClient();
+        $this->clearRedisHolds();
+
+        // 1. Quick Login as CLIENT
+        $client->request(
+            'POST',
+            '/api/auth/quick-login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['role' => 'CLIENT'])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // 2. Find available seat on an active event
+        $client->request('GET', '/api/events');
+        $events = json_decode($client->getResponse()->getContent(), true);
+        $targetEventId = null;
+        $availableSeat = null;
+
+        foreach ($events as $evt) {
+            $client->request('GET', sprintf('/api/events/%d/seats', $evt['id']));
+            $seatsData = json_decode($client->getResponse()->getContent(), true);
+            foreach ($seatsData['seats'] as $s) {
+                if ($s['status'] === 'AVAILABLE') {
+                    $targetEventId = (int) $evt['id'];
+                    $availableSeat = $s;
+                    break 2;
+                }
+            }
+        }
+        $this->assertNotNull($targetEventId);
+        $this->assertNotNull($availableSeat);
+
+        // 3. Hold seat
+        $client->request(
+            'POST',
+            sprintf('/api/events/%d/hold', $targetEventId),
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['seatIds' => [$availableSeat['id']]])
+        );
+        $this->assertResponseIsSuccessful();
+
+        // 4. First Checkout with Idempotency-Key
+        $idempKey = 'idemp-test-' . mt_rand(10000, 99999);
+        $client->request(
+            'POST',
+            '/api/checkout',
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_IDEMPOTENCY_KEY' => $idempKey,
+            ],
+            json_encode([
+                'eventId' => $targetEventId,
+                'seatIds' => [$availableSeat['id']],
+            ])
+        );
+        $this->assertResponseStatusCodeSame(201);
+        $firstData = json_decode($client->getResponse()->getContent(), true);
+        $firstTicketId = $firstData['tickets'][0]['id'];
+
+        // 5. Immediate Second Checkout with exact same Idempotency-Key (simulating double click or network retry)
+        $client->request(
+            'POST',
+            '/api/checkout',
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_IDEMPOTENCY_KEY' => $idempKey,
+            ],
+            json_encode([
+                'eventId' => $targetEventId,
+                'seatIds' => [$availableSeat['id']],
+            ])
+        );
+        // Must succeed with 201 Created and return the replay header
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertTrue($client->getResponse()->headers->has('X-Idempotent-Replay'));
+        $secondData = json_decode($client->getResponse()->getContent(), true);
+        $secondTicketId = $secondData['tickets'][0]['id'];
+
+        // Must return the exact same ticket without duplicate charge
+        $this->assertSame($firstTicketId, $secondTicketId);
+    }
 }
