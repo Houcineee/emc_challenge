@@ -132,7 +132,9 @@ class AdminApiController extends AbstractController
         $eventId = (int) ($data['eventId'] ?? 0);
         $code = strtoupper(trim((string) ($data['code'] ?? '')));
         $discountPercent = (int) ($data['discountPercent'] ?? 0);
-        $maxUses = isset($data['maxUses']) && $data['maxUses'] !== null ? (int) $data['maxUses'] : null;
+        $maxUses = isset($data['maxUses']) && $data['maxUses'] !== null && (int) $data['maxUses'] > 0
+            ? (int) $data['maxUses']
+            : 1000;
 
         if ($eventId <= 0 || $code === '' || $discountPercent <= 0 || $discountPercent > 100) {
             return new JsonResponse([

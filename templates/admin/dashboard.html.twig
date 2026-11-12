@@ -512,7 +512,7 @@
             code: document.getElementById('cp-code').value.toUpperCase().trim(),
             eventId: parseInt(document.getElementById('cp-event').value, 10),
             discountPercent: parseInt(document.getElementById('cp-discount').value, 10),
-            maxUses: maxUsesVal ? parseInt(maxUsesVal, 10) : null
+            maxUses: (maxUsesVal && parseInt(maxUsesVal, 10) > 0) ? parseInt(maxUsesVal, 10) : 1000
         };
 
         try {
