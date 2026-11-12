@@ -1,0 +1,408 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Panier & Paiement Sécurisé | Théâtre Royal{% endblock %}
+
+{% block body %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+    <!-- Stepper Indicator -->
+    <div class="flex items-center justify-center max-w-xl mx-auto">
+        <div class="flex items-center w-full">
+            <div class="flex items-center gap-2 text-gold-400 font-semibold text-xs sm:text-sm">
+                <span class="w-6 h-6 rounded-full bg-gold-500 text-theater-950 flex items-center justify-center font-bold text-xs">✓</span>
+                <span>1. Choix des places</span>
+            </div>
+            <div class="flex-grow border-t border-gold-500/40 mx-3"></div>
+            <div class="flex items-center gap-2 text-gold-400 font-semibold text-xs sm:text-sm">
+                <span class="w-6 h-6 rounded-full border border-gold-500 text-gold-400 flex items-center justify-center font-bold text-xs">2</span>
+                <span>2. Paiement</span>
+            </div>
+            <div class="flex-grow border-t border-slate-700 mx-3"></div>
+            <div class="flex items-center gap-2 text-slate-500 text-xs sm:text-sm">
+                <span class="w-6 h-6 rounded-full bg-theater-900 border border-slate-700 text-slate-500 flex items-center justify-center font-bold text-xs">3</span>
+                <span>3. Billets Officiels</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Checkout Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left Column: Cart Items & Promo Coupon (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- Cart Table Card -->
+            <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">🛒</span>
+                        <h1 class="font-serif text-2xl font-bold text-white">Récapitulatif de votre commande</h1>
+                    </div>
+                    <span id="checkout-items-count" class="px-3 py-1 rounded-full text-xs font-bold bg-gold-500/10 text-gold-400 border border-gold-500/30">
+                        Chargement...
+                    </span>
+                </div>
+
+                <!-- Live Items Container -->
+                <div id="checkout-cart-items" class="space-y-3">
+                    <div class="py-12 text-center text-slate-400 text-sm">
+                        Chargement des places réservées en direct depuis Redis...
+                    </div>
+                </div>
+
+                <!-- Empty Cart State (Hidden by default) -->
+                <div id="checkout-empty-state" class="hidden text-center py-12 space-y-4">
+                    <span class="text-4xl">🎭</span>
+                    <p class="text-slate-300 font-medium">Votre panier est vide ou vos réservations de 15 minutes ont expiré.</p>
+                    <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-theater-950 font-bold text-xs uppercase tracking-wider transition">
+                        Explorer les spectacles
+                    </a>
+                </div>
+            </div>
+
+            <!-- Promo Coupon Card -->
+            <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🎟️</span>
+                    <h2 class="font-serif text-lg font-bold text-white">Code Promotionnel / Réduction</h2>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="coupon-code-input" placeholder="Ex: VIP20, EARLY10" class="flex-grow bg-theater-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm uppercase font-mono tracking-wider text-white placeholder-slate-500 focus:outline-none focus:border-gold-500 transition">
+                    <button type="button" onclick="applyCoupon()" class="px-6 py-2.5 rounded-xl bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-600 font-semibold text-xs uppercase tracking-wider transition">
+                        Appliquer
+                    </button>
+                </div>
+
+                <!-- Coupon Test Hints -->
+                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400 pt-1">
+                    <span>Codes de test disponibles :</span>
+                    <button type="button" onclick="quickFillCoupon('VIP20')" class="px-2 py-0.5 rounded bg-gold-500/10 hover:bg-gold-500/20 text-gold-400 border border-gold-500/30 font-mono text-[11px] transition">
+                        VIP20 (-20%)
+                    </button>
+                    <button type="button" onclick="quickFillCoupon('EARLY10')" class="px-2 py-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-mono text-[11px] transition">
+                        EARLY10 (-10%)
+                    </button>
+                </div>
+
+                <!-- Coupon Message Banner -->
+                <div id="coupon-status-banner" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Order Summary & Payment (4 cols) -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- Summary Box -->
+            <div class="glass-panel-gold border border-gold-500/30 rounded-2xl p-6 shadow-2xl space-y-6">
+                <h2 class="font-serif text-xl font-bold text-white border-b border-gold-500/20 pb-3">
+                    Total de la Commande
+                </h2>
+
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-center justify-between text-slate-300">
+                        <span>Sous-total places</span>
+                        <span id="summary-subtotal" class="font-mono font-semibold text-white">0 MAD</span>
+                    </div>
+
+                    <div id="summary-discount-row" class="hidden flex items-center justify-between text-emerald-400">
+                        <span>Remise (<span id="discount-percent-label">0%</span>)</span>
+                        <span id="summary-discount-amount" class="font-mono font-semibold">-0 MAD</span>
+                    </div>
+
+                    <div class="pt-3 border-t border-gold-500/20 flex items-center justify-between">
+                        <span class="font-bold text-slate-200">Total net à payer</span>
+                        <span id="summary-total-net" class="text-2xl font-bold font-mono gold-gradient-text">0 MAD</span>
+                    </div>
+                </div>
+
+                <!-- Mode de Règlement -->
+                <div class="space-y-3 pt-2">
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                        Mode de paiement
+                    </label>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button type="button" onclick="selectPaymentMethod('CARD')" id="pm-card-btn" class="p-3 rounded-xl border border-gold-500 bg-gold-500/20 text-white font-semibold flex flex-col items-center justify-center gap-1 transition">
+                            <span class="text-lg">💳</span>
+                            <span>Carte Bancaire</span>
+                        </button>
+                        <button type="button" onclick="selectPaymentMethod('CASH')" id="pm-cash-btn" class="p-3 rounded-xl border border-slate-700 bg-theater-900/60 text-slate-400 hover:text-white font-semibold flex flex-col items-center justify-center gap-1 transition">
+                            <span class="text-lg">💵</span>
+                            <span>Espèces / Guichet</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Idempotency & Security Assurance -->
+                <div class="p-3 rounded-xl bg-theater-950/60 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                    <div class="flex items-center gap-1.5 text-slate-300 font-semibold">
+                        <span>🛡️</span> <span>Garantie Anti Double-Débit</span>
+                    </div>
+                    <div>Chaque transaction est protégée par une clé d'idempotence cryptographique unique.</div>
+                </div>
+
+                <!-- Confirm & Pay CTA -->
+                <button type="button" id="pay-confirm-btn" onclick="executeCheckout()" class="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-theater-950 font-bold text-base uppercase tracking-wider shadow-xl shadow-gold-500/25 hover:shadow-gold-500/40 transition disabled:opacity-50 disabled:pointer-events-none">
+                    <span id="pay-btn-spinner" class="hidden w-4 h-4 border-2 border-theater-950 border-t-transparent rounded-full animate-spin"></span>
+                    <span id="pay-btn-label">Confirmer et Payer</span>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    let cartItems = [];
+    let currentEventId = null;
+    let appliedCoupon = null;
+    let paymentMethod = 'CARD';
+
+    async function loadCart() {
+        try {
+            const res = await fetch('/api/cart');
+            if (res.status === 401) {
+                // Not logged in -> show friendly notice
+                renderUnauthenticated();
+                return;
+            }
+
+            const data = await res.json();
+            cartItems = data.items || [];
+
+            if (cartItems.length > 0) {
+                currentEventId = cartItems[0].eventId;
+            }
+
+            renderCart();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderUnauthenticated() {
+        const container = document.getElementById('checkout-cart-items');
+        container.innerHTML = `
+            <div class="p-8 text-center space-y-3">
+                <span class="text-3xl">👤</span>
+                <div class="text-white font-bold">Connexion requise pour finaliser la commande</div>
+                <div class="text-xs text-slate-400 max-w-md mx-auto">
+                    Utilisez le sélecteur rapide en haut de page pour vous connecter instantanément en 1 clic (ex: <strong>Client Alice</strong> ou <strong>Admin</strong>).
+                </div>
+            </div>
+        `;
+    }
+
+    function renderCart() {
+        const container = document.getElementById('checkout-cart-items');
+        const emptyState = document.getElementById('checkout-empty-state');
+        const countBadge = document.getElementById('checkout-items-count');
+        const payBtn = document.getElementById('pay-confirm-btn');
+
+        if (cartItems.length === 0) {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            countBadge.innerText = '0 place';
+            payBtn.disabled = true;
+            updateSummary(0);
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        container.classList.remove('hidden');
+        countBadge.innerText = `${cartItems.length} place${cartItems.length > 1 ? 's' : ''}`;
+        payBtn.disabled = false;
+
+        let subtotalCents = 0;
+        let html = '';
+
+        cartItems.forEach(item => {
+            subtotalCents += item.priceCents;
+            const priceMad = Math.round(item.priceCents / 100);
+            const m = Math.floor(item.ttl / 60);
+            const s = (item.ttl % 60).toString().padStart(2, '0');
+
+            html += `
+                <div class="flex flex-wrap items-center justify-between p-4 rounded-xl bg-theater-900/70 border border-slate-800 gap-4">
+                    <div class="space-y-1">
+                        <div class="font-serif font-bold text-white text-base">${item.eventTitle}</div>
+                        <div class="flex items-center gap-3 text-xs text-slate-300">
+                            <span class="text-gold-400 font-semibold">${item.zone}</span>
+                            <span>•</span>
+                            <span>Rang <strong>${item.row}</strong> — Place <strong>${item.number}</strong></span>
+                        </div>
+                        <div class="text-[11px] font-mono text-gold-400/90 flex items-center gap-1">
+                            <span>⏱️</span> <span>Réservation garantie encore <strong>${m}:${s}</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="font-mono font-bold text-white text-lg">${priceMad} MAD</div>
+                        <button type="button" onclick="deleteItem(${item.eventId}, ${item.seatId})" class="p-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 text-xs transition" title="Libérer cette place">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        updateSummary(subtotalCents);
+    }
+
+    async function deleteItem(eventId, seatId) {
+        try {
+            const res = await fetch(`/api/events/${eventId}/hold/${seatId}`, { method: 'DELETE' });
+            if (res.ok) {
+                await loadCart();
+                if (typeof updateCartHeader === 'function') updateCartHeader();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function quickFillCoupon(code) {
+        document.getElementById('coupon-code-input').value = code;
+        applyCoupon();
+    }
+
+    async function applyCoupon() {
+        const input = document.getElementById('coupon-code-input');
+        const banner = document.getElementById('coupon-status-banner');
+        const code = input.value.trim();
+
+        if (!code || !currentEventId) {
+            banner.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-950/80 border border-rose-800 text-rose-300';
+            banner.innerText = 'Veuillez saisir un code coupon.';
+            banner.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/coupons/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId: currentEventId,
+                    code: code
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.valid) {
+                appliedCoupon = data;
+                banner.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-950/80 border border-emerald-800 text-emerald-300';
+                banner.innerText = `Coupon ${data.code} appliqué avec succès ! (-${data.discountPercent}%)`;
+                banner.classList.remove('hidden');
+            } else {
+                appliedCoupon = null;
+                banner.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-950/80 border border-rose-800 text-rose-300';
+                banner.innerText = data.error || 'Code coupon invalide ou expiré.';
+                banner.classList.remove('hidden');
+            }
+
+            renderCart();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function updateSummary(subtotalCents) {
+        const subtotalMad = Math.round(subtotalCents / 100);
+        document.getElementById('summary-subtotal').innerText = `${subtotalMad} MAD`;
+
+        const discountRow = document.getElementById('summary-discount-row');
+        let finalCents = subtotalCents;
+
+        if (appliedCoupon && appliedCoupon.discountPercent > 0) {
+            discountRow.classList.remove('hidden');
+            document.getElementById('discount-percent-label').innerText = `-${appliedCoupon.discountPercent}%`;
+            const discountMad = Math.round(subtotalMad * (appliedCoupon.discountPercent / 100));
+            document.getElementById('summary-discount-amount').innerText = `-${discountMad} MAD`;
+            finalCents = Math.round(subtotalCents * ((100 - appliedCoupon.discountPercent) / 100));
+        } else {
+            discountRow.classList.add('hidden');
+        }
+
+        const totalNetMad = Math.round(finalCents / 100);
+        document.getElementById('summary-total-net').innerText = `${totalNetMad} MAD`;
+    }
+
+    function selectPaymentMethod(method) {
+        paymentMethod = method;
+        const cardBtn = document.getElementById('pm-card-btn');
+        const cashBtn = document.getElementById('pm-cash-btn');
+
+        if (method === 'CARD') {
+            cardBtn.className = 'p-3 rounded-xl border border-gold-500 bg-gold-500/20 text-white font-semibold flex flex-col items-center justify-center gap-1 transition';
+            cashBtn.className = 'p-3 rounded-xl border border-slate-700 bg-theater-900/60 text-slate-400 hover:text-white font-semibold flex flex-col items-center justify-center gap-1 transition';
+        } else {
+            cashBtn.className = 'p-3 rounded-xl border border-gold-500 bg-gold-500/20 text-white font-semibold flex flex-col items-center justify-center gap-1 transition';
+            cardBtn.className = 'p-3 rounded-xl border border-slate-700 bg-theater-900/60 text-slate-400 hover:text-white font-semibold flex flex-col items-center justify-center gap-1 transition';
+        }
+    }
+
+    async function executeCheckout() {
+        if (cartItems.length === 0) return;
+
+        const payBtn = document.getElementById('pay-confirm-btn');
+        const spinner = document.getElementById('pay-btn-spinner');
+        const label = document.getElementById('pay-btn-label');
+
+        payBtn.disabled = true;
+        spinner.classList.remove('hidden');
+        label.innerText = 'Traitement sécurisé en cours...';
+
+        // Génération d'une clé d'idempotence UUID v4 standard
+        const idempotencyKey = crypto.randomUUID();
+
+        const seatIds = cartItems.map(i => i.seatId);
+        const payload = {
+            eventId: currentEventId,
+            seatIds: seatIds,
+            couponCode: appliedCoupon ? appliedCoupon.code : null
+        };
+
+        try {
+            const res = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': idempotencyKey
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Succès -> redirection vers la page des billets
+                window.location.href = '/tickets/my?success=1';
+            } else {
+                alert(data.error || 'Erreur lors de la validation du paiement.');
+                payBtn.disabled = false;
+                spinner.classList.add('hidden');
+                label.innerText = 'Confirmer et Payer';
+            }
+        } catch (e) {
+            alert('Erreur réseau lors du paiement.');
+            payBtn.disabled = false;
+            spinner.classList.add('hidden');
+            label.innerText = 'Confirmer et Payer';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCart();
+        setInterval(loadCart, 10000);
+    });
+</script>
+{% endblock %}

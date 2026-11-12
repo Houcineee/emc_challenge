@@ -1,0 +1,417 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Direction du Théâtre — Dashboard Administrateur | Théâtre Royal{% endblock %}
+
+{% block body %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+    {% if not isAdmin %}
+    <!-- Unauthorized Banner with 1-click quick-login helper -->
+    <div class="glass-panel border border-amber-500/30 rounded-3xl p-10 text-center max-w-2xl mx-auto space-y-4">
+        <span class="text-4xl">👑</span>
+        <h1 class="font-serif text-3xl font-bold text-white">Espace Direction & Administration</h1>
+        <p class="text-slate-300 text-sm">
+            Cette interface de gestion (métriques financières, annulation de représentations et coupons) est réservée au rôle <strong class="text-gold-400">ADMIN</strong>.
+        </p>
+        <div class="pt-2">
+            <button type="button" onclick="quickLogin('ADMIN')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 transition">
+                👑 Activer le profil Administrateur en 1 clic
+            </button>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Admin Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div>
+            <div class="text-xs uppercase tracking-widest text-gold-400 font-bold">Direction du Théâtre</div>
+            <h1 class="font-serif text-3xl sm:text-4xl font-bold text-white mt-1">Tableau de Bord & Pilotage</h1>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="openCreateEventModal()" class="px-4 py-2.5 rounded-xl bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700 font-semibold text-xs tracking-wider transition flex items-center gap-2">
+                <span>➕</span> <span>Nouveau Spectacle</span>
+            </button>
+            <button type="button" onclick="openCreateCouponModal()" class="px-4 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-theater-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-gold-500/20">
+                <span>🎟️</span> <span>Créer un Coupon</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4 Key Metrics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Total Revenue -->
+        <div class="glass-panel-gold border border-gold-500/30 rounded-2xl p-6 space-y-2">
+            <div class="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
+                <span>Chiffre d'Affaires</span>
+                <span class="text-lg">💰</span>
+            </div>
+            <div class="font-mono text-3xl font-bold gold-gradient-text">
+                {{ totalRevenueMad|number_format(0, ',', ' ') }} MAD
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono">
+                {{ (totalRevenueCents / 100)|number_format(2, ',', ' ') }} DH net encaissé
+            </div>
+        </div>
+
+        <!-- Total Tickets Sold -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 space-y-2">
+            <div class="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
+                <span>Billets Vendus</span>
+                <span class="text-lg">🎫</span>
+            </div>
+            <div class="font-serif text-3xl font-bold text-white">
+                {{ totalTicketsSold }}
+            </div>
+            <div class="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span>✓</span> <span>Transactions confirmées en base</span>
+            </div>
+        </div>
+
+        <!-- Global Occupancy Rate -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 space-y-2">
+            <div class="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
+                <span>Occupation Moyenne</span>
+                <span class="text-lg">🏛️</span>
+            </div>
+            <div class="font-serif text-3xl font-bold text-white">
+                {{ globalOccupancyPercent }}%
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-theater-800 overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-emerald-500 to-gold-500" style="width: {{ globalOccupancyPercent }}%;"></div>
+            </div>
+        </div>
+
+        <!-- Hall Capacity -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 space-y-2">
+            <div class="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
+                <span>Capacité Salle</span>
+                <span class="text-lg">🎭</span>
+            </div>
+            <div class="font-serif text-3xl font-bold text-white">
+                400 Places
+            </div>
+            <div class="text-[11px] text-slate-400">
+                5 Zones modulables
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Events Performance Table -->
+    <div class="glass-panel border border-slate-800 rounded-2xl overflow-hidden shadow-xl space-y-4 p-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">📋</span>
+                <h2 class="font-serif text-xl font-bold text-white">Programmation & État des Ventes</h2>
+            </div>
+            <span class="text-xs text-slate-400">{{ events|length }} spectacles</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Spectacle</th>
+                        <th class="py-3 px-4">Type</th>
+                        <th class="py-3 px-4">Date & Heure</th>
+                        <th class="py-3 px-4">Remplissage</th>
+                        <th class="py-3 px-4">Recettes</th>
+                        <th class="py-3 px-4">Statut</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-slate-200">
+                    {% for item in events %}
+                    {% set ev = item.entity %}
+                    <tr class="hover:bg-theater-900/40 transition">
+                        <td class="py-4 px-4 font-bold text-white">
+                            {{ ev.title }}
+                        </td>
+                        <td class="py-4 px-4">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-theater-800 border border-slate-700 text-slate-300">
+                                {{ ev.eventType ? ev.eventType.name : '' }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 font-mono text-slate-300">
+                            {{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}
+                        </td>
+                        <td class="py-4 px-4">
+                            <div class="space-y-1 min-w-[120px]">
+                                <div class="flex justify-between text-[11px] text-slate-300">
+                                    <span>{{ item.soldSeats }}/{{ item.totalSeats }}</span>
+                                    <span class="font-bold text-gold-400">{{ item.occupancyPercent }}%</span>
+                                </div>
+                                <div class="w-full h-1.5 rounded-full bg-theater-800 overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: {{ item.occupancyPercent }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-4 font-mono font-bold text-gold-400">
+                            {{ item.revenueMad|number_format(0, ',', ' ') }} MAD
+                        </td>
+                        <td class="py-4 px-4">
+                            {% if ev.status.value == 'SCHEDULED' %}
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    PROGRAMMÉ
+                                </span>
+                            {% else %}
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                    ANNULÉ / REMBOURSÉ
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-4 text-right space-x-2">
+                            <a href="/events/{{ ev.id }}" class="px-3 py-1.5 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-xs font-semibold transition inline-block">
+                                Salle 3D
+                            </a>
+                            {% if ev.status.value == 'SCHEDULED' %}
+                            <button type="button" onclick="cancelEvent({{ ev.id }}, '{{ ev.title|e('js') }}')" class="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 text-xs font-semibold transition">
+                                Annuler
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Coupons Table -->
+    <div class="glass-panel border border-slate-800 rounded-2xl overflow-hidden shadow-xl space-y-4 p-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">🏷️</span>
+                <h2 class="font-serif text-xl font-bold text-white">Codes Promotionnels & Réductions</h2>
+            </div>
+            <span class="text-xs text-slate-400">{{ coupons|length }} coupons</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Code</th>
+                        <th class="py-3 px-4">Spectacle rattaché</th>
+                        <th class="py-3 px-4">Remise</th>
+                        <th class="py-3 px-4">Utilisations</th>
+                        <th class="py-3 px-4">Validité</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-slate-200">
+                    {% for item in coupons %}
+                    {% set c = item.entity %}
+                    <tr class="hover:bg-theater-900/40 transition">
+                        <td class="py-3 px-4 font-mono font-bold text-gold-400 text-sm">
+                            {{ c.code }}
+                        </td>
+                        <td class="py-3 px-4 font-medium text-white">
+                            {{ c.event ? c.event.title : 'Tous spectacles' }}
+                        </td>
+                        <td class="py-3 px-4 font-bold text-emerald-400">
+                            -{{ c.discountPercent }}%
+                        </td>
+                        <td class="py-3 px-4 font-mono">
+                            {{ item.usedCount }} / {{ c.maxUses ? c.maxUses : '∞' }}
+                        </td>
+                        <td class="py-3 px-4 text-slate-400 font-mono text-[11px]">
+                            {{ c.validUntil ? c.validUntil|date('d/m/Y') : 'Illimité' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="py-6 text-center text-slate-400">
+                            Aucun coupon créé pour le moment.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal: Nouveau Spectacle -->
+    <div id="create-event-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel-gold border border-gold-500/40 rounded-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-gold-500/20 pb-3">
+                <h3 class="font-serif text-xl font-bold text-white">Créer un Nouveau Spectacle</h3>
+                <button type="button" onclick="closeCreateEventModal()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <form id="create-event-form" onsubmit="submitCreateEvent(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Titre du spectacle *</label>
+                    <input type="text" id="ev-title" required class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Description</label>
+                    <textarea id="ev-desc" rows="3" class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Type d'événement *</label>
+                        <select id="ev-type" required class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                            {% for et in eventTypes %}
+                                <option value="{{ et.id }}">{{ et.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Prix de base (MAD) *</label>
+                        <input type="number" id="ev-price" required min="10" value="150" class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Date et Heure *</label>
+                    <input type="datetime-local" id="ev-date" required class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                </div>
+
+                <div class="flex justify-end gap-3 pt-3 border-t border-gold-500/20">
+                    <button type="button" onclick="closeCreateEventModal()" class="px-4 py-2 rounded-xl bg-theater-800 text-slate-300 hover:text-white">Annuler</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-gold-500 text-theater-950 font-bold uppercase tracking-wider">Créer le spectacle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Nouveau Coupon -->
+    <div id="create-coupon-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel-gold border border-gold-500/40 rounded-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-gold-500/20 pb-3">
+                <h3 class="font-serif text-xl font-bold text-white">Créer un Code Coupon</h3>
+                <button type="button" onclick="closeCreateCouponModal()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <form id="create-coupon-form" onsubmit="submitCreateCoupon(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Code promo (Ex: NOEL25) *</label>
+                    <input type="text" id="cp-code" required class="w-full uppercase font-mono bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Spectacle rattaché *</label>
+                    <select id="cp-event" required class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                        {% for item in events %}
+                            <option value="{{ item.entity.id }}">{{ item.entity.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Remise (%) *</label>
+                        <input type="number" id="cp-discount" required min="1" max="100" value="20" class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Max utilisations</label>
+                        <input type="number" id="cp-max" min="1" placeholder="Illimité" class="w-full bg-theater-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-gold-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-3 border-t border-gold-500/20">
+                    <button type="button" onclick="closeCreateCouponModal()" class="px-4 py-2 rounded-xl bg-theater-800 text-slate-300 hover:text-white">Annuler</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-gold-500 text-theater-950 font-bold uppercase tracking-wider">Créer le coupon</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    function openCreateEventModal() {
+        document.getElementById('create-event-modal').classList.remove('hidden');
+    }
+    function closeCreateEventModal() {
+        document.getElementById('create-event-modal').classList.add('hidden');
+    }
+    function openCreateCouponModal() {
+        document.getElementById('create-coupon-modal').classList.remove('hidden');
+    }
+    function closeCreateCouponModal() {
+        document.getElementById('create-coupon-modal').classList.add('hidden');
+    }
+
+    async function submitCreateEvent(e) {
+        e.preventDefault();
+        const payload = {
+            title: document.getElementById('ev-title').value,
+            description: document.getElementById('ev-desc').value,
+            eventTypeId: parseInt(document.getElementById('ev-type').value, 10),
+            basePriceCents: parseInt(document.getElementById('ev-price').value, 10) * 100,
+            startsAt: new Date(document.getElementById('ev-date').value).toISOString()
+        };
+
+        try {
+            const res = await fetch('/api/admin/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Spectacle créé avec succès !');
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur lors de la création.');
+            }
+        } catch (err) {
+            alert('Erreur réseau.');
+        }
+    }
+
+    async function submitCreateCoupon(e) {
+        e.preventDefault();
+        const maxUsesVal = document.getElementById('cp-max').value;
+        const payload = {
+            code: document.getElementById('cp-code').value.toUpperCase().trim(),
+            eventId: parseInt(document.getElementById('cp-event').value, 10),
+            discountPercent: parseInt(document.getElementById('cp-discount').value, 10),
+            maxUses: maxUsesVal ? parseInt(maxUsesVal, 10) : null
+        };
+
+        try {
+            const res = await fetch('/api/admin/coupons', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Coupon créé avec succès !');
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur lors de la création du coupon.');
+            }
+        } catch (err) {
+            alert('Erreur réseau.');
+        }
+    }
+
+    async function cancelEvent(eventId, eventTitle) {
+        if (!confirm(`Confirmez-vous l'annulation du spectacle "${eventTitle}" ?\nTous les billets vendus seront automatiquement passés au statut REMBOURSÉ.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/events/${eventId}/cancel`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(`Spectacle annulé avec succès.\n${data.refundedTicketsCount} billets ont été passés en remboursement.`);
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur lors de l\'annulation.');
+            }
+        } catch (err) {
+            alert('Erreur réseau.');
+        }
+    }
+</script>
+{% endblock %}

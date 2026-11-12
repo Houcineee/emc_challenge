@@ -1,0 +1,216 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Guichet POS & Contrôle d'Accès | Théâtre Royal{% endblock %}
+
+{% block body %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+    {% if not isAuthorized %}
+    <!-- Unauthorized Banner -->
+    <div class="glass-panel border border-sky-500/30 rounded-3xl p-10 text-center max-w-2xl mx-auto space-y-4">
+        <span class="text-4xl">🎫</span>
+        <h1 class="font-serif text-3xl font-bold text-white">Guichet & Contrôle d'Accès</h1>
+        <p class="text-slate-300 text-sm">
+            Cet espace de vente physique et de validation des billets est réservé aux rôles <strong class="text-sky-400">GUICHETIER</strong> ou <strong class="text-gold-400">ADMINISTRATEUR</strong>.
+        </p>
+        <div class="pt-2">
+            <button type="button" onclick="quickLogin('CASHIER')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-sky-500/20 transition">
+                🎫 Activer le profil Guichetier en 1 clic
+            </button>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Cashier Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div>
+            <div class="text-xs uppercase tracking-widest text-sky-400 font-bold">Guichet & Portes</div>
+            <h1 class="font-serif text-3xl sm:text-4xl font-bold text-white mt-1">Contrôle d'Accès & Point de Vente (POS)</h1>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-mono text-slate-300">Scanner QR & API Opérationnels</span>
+        </div>
+    </div>
+
+    <!-- Main Workspace Split: Scanner QR & Vente Directe -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left: QR Code Verification Tester (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+            <div class="glass-panel-gold border border-gold-500/30 rounded-2xl p-6 shadow-2xl space-y-6">
+                
+                <div class="flex items-center justify-between border-b border-gold-500/20 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">🔍</span>
+                        <h2 class="font-serif text-xl font-bold text-white">Testeur de Scan QR Code Billet</h2>
+                    </div>
+                    <span class="text-[11px] font-mono text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded border border-gold-500/20">Entrée Salle</span>
+                </div>
+
+                <p class="text-xs text-slate-300">
+                    Saisissez ou collez le code QR scanné (format canonique <code>EMC-{eventId}-{ticketId}</code> ou identifiant direct de billet) pour valider l'entrée du spectateur en temps réel.
+                </p>
+
+                <!-- Scan Input Form -->
+                <form onsubmit="handleVerifyTicket(event)" class="space-y-3">
+                    <div class="flex gap-2">
+                        <input type="text" id="qr-input" autofocus placeholder="Ex: EMC-1-1 ou EMC-2-12" class="flex-grow bg-theater-900 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-gold-500 transition">
+                        <button type="submit" class="px-6 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 transition flex items-center gap-1.5">
+                            <span>Vérifier</span>
+                        </button>
+                    </div>
+
+                    <!-- Test Shortcut Pills -->
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400 pt-1">
+                        <span>Tests 1-clic :</span>
+                        <button type="button" onclick="fillAndVerify('EMC-1-1')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
+                            EMC-1-1 (Billet Valide)
+                        </button>
+                        <button type="button" onclick="fillAndVerify('EMC-1-2')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
+                            EMC-1-2 (Billet Valide)
+                        </button>
+                        <button type="button" onclick="fillAndVerify('EMC-99-999')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
+                            EMC-99-999 (Inexistant)
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Verification Result Display Area -->
+                <div id="verification-result-box" class="hidden rounded-2xl border p-6 space-y-4 transition-all">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right: Vente Express Guichet POS (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
+                    <span class="text-xl">💳</span>
+                    <h2 class="font-serif text-xl font-bold text-white">Vente Express au Comptoir</h2>
+                </div>
+
+                <p class="text-xs text-slate-400">
+                    Pour vendre une place physiquement à un client se présentant au guichet, sélectionnez le spectacle pour ouvrir le plan 3D de vente :
+                </p>
+
+                <div class="space-y-3">
+                    {% for ev in events %}
+                    <div class="p-4 rounded-xl bg-theater-900/60 border border-slate-800 hover:border-gold-500/30 transition flex items-center justify-between gap-3">
+                        <div class="space-y-0.5">
+                            <div class="font-serif font-bold text-white text-sm">{{ ev.title }}</div>
+                            <div class="text-[11px] text-slate-400">{{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}</div>
+                            <div class="text-[11px] text-gold-400 font-semibold">Dès {{ (ev.basePriceCents / 100)|number_format(0) }} MAD</div>
+                        </div>
+
+                        <a href="/events/{{ ev.id }}" class="px-3.5 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-theater-950 font-bold text-xs uppercase tracking-wider transition shadow">
+                            Ouvrir Salle 3D
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-6 text-slate-400 text-xs">
+                        Aucun spectacle programmé.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    function fillAndVerify(code) {
+        document.getElementById('qr-input').value = code;
+        handleVerifyTicket(new Event('submit'));
+    }
+
+    async function handleVerifyTicket(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const input = document.getElementById('qr-input');
+        const code = input.value.trim();
+        const box = document.getElementById('verification-result-box');
+
+        if (!code) return;
+
+        box.className = 'rounded-2xl border p-6 space-y-4 bg-theater-900/90 border-slate-700';
+        box.innerHTML = `<div class="text-center text-xs text-slate-400">Interrogation de la base de données...</div>`;
+        box.classList.remove('hidden');
+
+        try {
+            const res = await fetch('/api/cashier/verify-ticket', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qrPayload: code })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.valid && data.status === 'PAID') {
+                const t = data.ticket;
+                box.className = 'rounded-2xl border p-6 space-y-4 bg-emerald-950/80 border-emerald-500/50 text-white shadow-2xl';
+                box.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">✅</span>
+                        <div>
+                            <div class="font-serif text-xl font-bold text-emerald-300">ACCÈS AUTORISÉ — BILLET VALIDE</div>
+                            <div class="text-xs text-emerald-200/90">${data.message}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
+                            <span class="text-slate-400 block text-[10px] uppercase">Spectacle</span>
+                            <span class="font-bold text-white">${t.eventTitle}</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
+                            <span class="text-slate-400 block text-[10px] uppercase">Emplacement</span>
+                            <span class="font-bold text-gold-400">${t.zoneName} — Rang ${t.seatRow}, Place ${t.seatNumber}</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
+                            <span class="text-slate-400 block text-[10px] uppercase">Titulaire</span>
+                            <span class="font-bold text-white truncate block">${t.buyerEmail}</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
+                            <span class="text-slate-400 block text-[10px] uppercase">Prix Payé</span>
+                            <span class="font-bold font-mono text-white">${Math.round(t.finalPriceCents / 100)} MAD</span>
+                        </div>
+                    </div>
+                `;
+            } else if (data.status === 'REFUNDED') {
+                box.className = 'rounded-2xl border p-6 space-y-3 bg-rose-950/80 border-rose-500/50 text-white shadow-2xl';
+                box.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">⛔</span>
+                        <div>
+                            <div class="font-serif text-xl font-bold text-rose-300">ACCÈS REFUSÉ — BILLET REMBOURSÉ</div>
+                            <div class="text-xs text-rose-200/90">${data.message}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                box.className = 'rounded-2xl border p-6 space-y-3 bg-amber-950/80 border-amber-500/50 text-white shadow-2xl';
+                box.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">⚠️</span>
+                        <div>
+                            <div class="font-serif text-xl font-bold text-amber-300">BILLET INVALIDE OU INTROUVABLE</div>
+                            <div class="text-xs text-amber-200/90">${data.error || 'Aucun billet ne correspond à ce code QR.'}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (err) {
+            box.className = 'rounded-2xl border p-4 bg-rose-950/80 border-rose-500/50 text-rose-200 text-xs';
+            box.innerText = 'Erreur lors de la communication avec le serveur de vérification.';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,23 +1,297 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Théâtre Royal — Billetterie Officielle{% endblock %}</title>
+    
+    <!-- Google Fonts: Playfair Display & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        theater: {
+                            950: '#07090e',
+                            900: '#0c0e15',
+                            850: '#111520',
+                            800: '#171c2b',
+                            700: '#232a3f',
+                            600: '#343e5c',
+                        },
+                        gold: {
+                            300: '#fde047',
+                            400: '#facc15',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                        },
+                        velvet: {
+                            800: '#4c0519',
+                            900: '#2b030e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
-        {% block javascripts %}
-        {% endblock %}
+    <!-- Custom Luxury Theater Styles -->
+    <style>
+        body {
+            background-color: #07090e;
+            color: #e2e8f0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+        }
 
-        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphp_hot_reload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
-    </head>
-    <body>
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Glassmorphism surfaces */
+        .glass-panel {
+            background: rgba(17, 21, 32, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-panel-gold {
+            background: rgba(20, 24, 38, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        /* Subtle gold gradient text */
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #b45309 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gold-border-glow {
+            box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #07090e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #232a3f;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d97706;
+        }
+    </style>
+
+    {% block stylesheets %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col bg-theater-950 text-slate-200 antialiased selection:bg-gold-500 selection:text-black">
+
+    <!-- Top Evaluator Demo Bar (Permet de tester les 3 rôles instantanément) -->
+    <div class="bg-theater-900/90 border-b border-theater-800 text-xs py-1.5 px-4 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 text-slate-400">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-medium text-slate-300">PFE EMC Challenge</span>
+                <span class="text-theater-700">|</span>
+                <span>Rôle actuel :</span>
+                <span id="current-role-badge" class="font-semibold text-gold-400 uppercase tracking-wider px-2 py-0.5 rounded bg-gold-500/10 border border-gold-500/20">
+                    {{ app.user ? app.user.role.value : 'ANONYME' }}
+                </span>
+                {% if app.user %}
+                <span class="text-slate-500">({{ app.user.email }})</span>
+                {% endif %}
+            </div>
+
+            <!-- Boutons Quick Login 1-clic pour l'évaluation -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-slate-400 mr-1 hidden sm:inline">Tester en 1 clic :</span>
+                <button onclick="quickLogin('ADMIN')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
+                    👑 <span>Admin</span>
+                </button>
+                <button onclick="quickLogin('CASHIER')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
+                    🎫 <span>Guichet</span>
+                </button>
+                <button onclick="quickLogin('CLIENT')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
+                    👤 <span>Client Alice</span>
+                </button>
+                {% if app.user %}
+                <button onclick="logout()" class="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 transition text-xs">
+                    Déconnexion
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Header -->
+    <header class="glass-panel border-b border-theater-800/80 sticky top-[33px] z-40 transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            
+            <!-- Brand Logo -->
+            <a href="/" class="flex items-center gap-3 group">
+                <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-gold-400 via-gold-500 to-gold-700 p-0.5 shadow-lg shadow-gold-500/10 group-hover:shadow-gold-500/25 transition">
+                    <div class="w-full h-full bg-theater-950 rounded-[7px] flex items-center justify-center">
+                        <span class="text-xl">🎭</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="font-serif text-2xl font-bold tracking-tight text-white group-hover:text-gold-400 transition">
+                        Le Théâtre
+                    </div>
+                    <div class="text-[10px] uppercase tracking-[0.2em] text-gold-500 font-semibold -mt-1">
+                        Scène & Billetterie
+                    </div>
+                </div>
+            </a>
+
+            <!-- Nav Links -->
+            <nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+                <a href="/" class="text-slate-300 hover:text-gold-400 transition flex items-center gap-1.5">
+                    <span>Spectacles & Saison</span>
+                </a>
+                <a href="/tickets/my" class="text-slate-300 hover:text-gold-400 transition flex items-center gap-1.5">
+                    <span>Mes Billets</span>
+                </a>
+                {% if is_granted('ROLE_ADMIN') %}
+                <a href="/admin" class="text-amber-400 hover:text-amber-300 transition flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
+                    <span>👑 Administration</span>
+                </a>
+                {% endif %}
+                {% if is_granted('ROLE_CASHIER') or is_granted('ROLE_ADMIN') %}
+                <a href="/cashier" class="text-sky-400 hover:text-sky-300 transition flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/30">
+                    <span>🎫 Guichet POS</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <!-- Cart Pill & Quick CTA -->
+            <div class="flex items-center gap-4">
+                <a href="/checkout" id="cart-header-button" class="relative group px-4 py-2.5 rounded-full glass-panel hover:glass-panel-gold border border-slate-700 hover:border-gold-500/50 transition flex items-center gap-2.5 text-sm">
+                    <span class="text-gold-400">🛒</span>
+                    <span class="font-medium text-slate-200">Panier</span>
+                    <span id="cart-count-badge" class="px-2 py-0.5 rounded-full bg-gold-500 text-theater-950 font-bold text-xs">
+                        0
+                    </span>
+                    <div id="cart-timer-container" class="hidden text-xs font-mono text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded border border-gold-500/20">
+                        ⏱️ <span id="cart-timer-display">15:00</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
         {% block body %}{% endblock %}
-    </body>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-theater-950 border-t border-theater-800/80 mt-24 py-12 text-slate-400 text-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🎭</span>
+                <div>
+                    <div class="font-serif text-white font-semibold text-base">Théâtre Royal de la Ville</div>
+                    <div class="text-xs text-slate-500">Salle de spectacle modulable de 400 places (Concerts, Théâtre & Conférences)</div>
+                </div>
+            </div>
+
+            <div class="text-xs text-slate-500 text-center md:text-right">
+                <div>Projet réalisé pour le <strong class="text-slate-300">PFE Challenge EMC</strong> — Sujet 1</div>
+                <div>Symfony 7.4 • MySQL 8 • Redis 7 • Three.js 3D</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global Client Logic (Quick-Login, Cart Count & Auto-Polling) -->
+    <script>
+        async function quickLogin(role) {
+            try {
+                const res = await fetch('/api/auth/quick-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: role })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors du changement de rôle');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (e) {
+                window.location.reload();
+            }
+        }
+
+        // Live Cart Tracker
+        let cartInterval = null;
+        async function updateCartHeader() {
+            try {
+                const res = await fetch('/api/cart');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const countBadge = document.getElementById('cart-count-badge');
+                const timerContainer = document.getElementById('cart-timer-container');
+                const timerDisplay = document.getElementById('cart-timer-display');
+
+                if (data.totalItems > 0) {
+                    countBadge.innerText = data.totalItems;
+                    countBadge.classList.remove('hidden');
+
+                    // Find minimum remaining TTL across items
+                    const minTtl = Math.min(...data.items.map(i => i.ttl));
+                    if (minTtl > 0) {
+                        timerContainer.classList.remove('hidden');
+                        const m = Math.floor(minTtl / 60).toString().padStart(2, '0');
+                        const s = (minTtl % 60).toString().padStart(2, '0');
+                        timerDisplay.innerText = `${m}:${s}`;
+                    }
+                } else {
+                    countBadge.innerText = '0';
+                    timerContainer.classList.add('hidden');
+                }
+            } catch (e) {
+                // ignore if unauthenticated
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCartHeader();
+            setInterval(updateCartHeader, 10000);
+        });
+    </script>
+
+    {% block javascripts %}{% endblock %}
+</body>
 </html>
