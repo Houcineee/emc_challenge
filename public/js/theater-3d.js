@@ -534,12 +534,13 @@
             const data = await res.json();
 
             if (res.ok) {
-                showToast(`Siège réservé pendant 15 minutes !`, 'success');
+                showToast('Place ajoutée à votre sélection.', 'success');
                 // Recharger l'état
                 await loadSeats();
                 if (typeof updateCartHeader === 'function') updateCartHeader();
             } else if (res.status === 401) {
-                showToast('Authentification requise. Utilisez la barre rapide en haut (Client Alice).', 'warning');
+                showToast('Veuillez vous connecter pour réserver vos places.', 'warning');
+                setTimeout(() => { window.location.href = '/login'; }, 1000);
             } else {
                 showToast(data.error || 'Impossible de réserver ce siège.', 'error');
             }
@@ -555,7 +556,7 @@
             });
 
             if (res.ok) {
-                showToast('Siège libéré de votre panier.', 'info');
+                showToast('Place retirée de votre sélection.', 'info');
                 await loadSeats();
                 if (typeof updateCartHeader === 'function') updateCartHeader();
             } else {
@@ -581,13 +582,15 @@
         countBadge.innerText = `${holdsForMe.length} place${holdsForMe.length > 1 ? 's' : ''}`;
 
         if (holdsForMe.length === 0) {
-            listEl.innerHTML = `<div class="text-center py-6 text-xs text-slate-400">Cliquez sur un siège vert pour le réserver pendant 15 minutes.</div>`;
+            listEl.innerHTML = `<div style="text-align:center;padding:36px 0;color:var(--muted);font-size:var(--t-5);">Cliquez sur une place libre dans la salle pour l'ajouter à votre sélection.</div>`;
             totalEl.innerText = '0 MAD';
-            ctaBtn.classList.add('opacity-50', 'pointer-events-none');
+            ctaBtn.style.opacity = '0.4';
+            ctaBtn.style.pointerEvents = 'none';
             return;
         }
 
-        ctaBtn.classList.remove('opacity-50', 'pointer-events-none');
+        ctaBtn.style.opacity = '1';
+        ctaBtn.style.pointerEvents = 'auto';
 
         let totalCents = 0;
         let html = '';
@@ -599,14 +602,14 @@
             const sec = s.holdTtl ? (s.holdTtl % 60).toString().padStart(2, '0') : '00';
 
             html += `
-                <div class="flex items-center justify-between p-2.5 rounded-xl bg-theater-900/90 border border-gold-500/20 text-xs">
+                <div class="seat-item">
                     <div>
-                        <div class="font-bold text-white">Rang ${s.row} — N° ${s.number}</div>
-                        <div class="text-[10px] text-gold-400">${s.zone ? s.zone.name : ''} • ${priceMad} MAD</div>
-                        <div class="text-[10px] text-slate-400 font-mono">⏱️ expire dans ${m}:${sec}</div>
+                        <div style="font-weight:500;color:var(--cream);">Rang ${s.row} — N° ${s.number}</div>
+                        <div class="meta" style="font-size:0.75rem;">${s.zone ? s.zone.name : ''} · ${priceMad} MAD</div>
+                        <div class="meta" style="font-size:0.7rem;color:var(--muted);font-family:monospace;margin-top:2px;">Réservée encore ${m}:${sec}</div>
                     </div>
-                    <button onclick="releaseSeatFromCart(${s.id})" class="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 text-[11px] transition">
-                        ✕
+                    <button type="button" onclick="releaseSeatFromCart(${s.id})" class="meta" style="cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:1px;">
+                        Retirer
                     </button>
                 </div>
             `;
@@ -621,20 +624,20 @@
         if (!container) return;
 
         const toast = document.createElement('div');
-        toast.className = `px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+        toast.className = 'px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border text-xs font-medium transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto';
 
         if (type === 'success') {
-            toast.className += ' bg-emerald-950/90 border-emerald-500/40 text-emerald-200';
-            toast.innerHTML = `<span>✓</span> <span>${message}</span>`;
+            toast.className += ' bg-theater-900 border-gold-500/40 text-white';
+            toast.innerText = message;
         } else if (type === 'error') {
-            toast.className += ' bg-rose-950/90 border-rose-500/40 text-rose-200';
-            toast.innerHTML = `<span>⚠</span> <span>${message}</span>`;
+            toast.className += ' bg-theater-900 border-rose-500/40 text-rose-300';
+            toast.innerText = message;
         } else if (type === 'warning') {
-            toast.className += ' bg-amber-950/90 border-amber-500/40 text-amber-200';
-            toast.innerHTML = `<span>⏳</span> <span>${message}</span>`;
+            toast.className += ' bg-theater-900 border-amber-500/40 text-amber-300';
+            toast.innerText = message;
         } else {
-            toast.className += ' bg-theater-900/95 border-slate-700 text-slate-200';
-            toast.innerHTML = `<span>ℹ</span> <span>${message}</span>`;
+            toast.className += ' bg-theater-900 border-white/10 text-slate-200';
+            toast.innerText = message;
         }
 
         container.appendChild(toast);

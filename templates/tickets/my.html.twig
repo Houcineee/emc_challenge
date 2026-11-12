@@ -1,213 +1,172 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Mes Billets Officiels | Théâtre Royal{% endblock %}
+{% block title %}Mes Billets — Théâtre Royal{% endblock %}
 
 {% block stylesheets %}
 <style>
     @media print {
-        body {
-            background: #fff !important;
-            color: #000 !important;
-        }
-        header, footer, .evaluator-bar, .no-print {
-            display: none !important;
-        }
+        body { background: #fff !important; color: #000 !important; }
+        header, footer, .no-print { display: none !important; }
         .ticket-card {
-            break-inside: avoid;
-            border: 2px solid #000 !important;
+            border: 1px solid #000 !important;
             background: #fff !important;
             color: #000 !important;
             box-shadow: none !important;
-            margin-bottom: 2rem !important;
+            page-break-inside: avoid;
+            margin-bottom: 24px !important;
         }
-        .ticket-stub {
-            border-left: 2px dashed #000 !important;
-        }
-        .ticket-title {
-            color: #000 !important;
-        }
-        .ticket-badge {
-            border: 1px solid #000 !important;
-            color: #000 !important;
-            background: transparent !important;
-        }
+        .ticket-title { color: #000 !important; }
+    }
+    .ticket-card {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        overflow: hidden;
+    }
+    .ticket-main {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 24px;
+    }
+    .ticket-stub {
+        padding: 32px;
+        border-left: 1px dashed var(--rule);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-width: 180px;
+        background: rgba(0,0,0,0.25);
+    }
+    @media (max-width: 640px) {
+        .ticket-card { grid-template-columns: 1fr; }
+        .ticket-stub { border-left: 0; border-top: 1px dashed var(--rule); }
     }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+<div class="wrap" style="padding-top:48px;padding-bottom:96px;max-width:860px;">
 
-    <!-- Header & Print Action -->
-    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+    <!-- Header -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:16px;">
         <div>
-            <div class="text-xs uppercase tracking-widest text-gold-500 font-bold">Billetterie Officielle</div>
-            <h1 class="font-serif text-3xl sm:text-4xl font-bold text-white mt-1">Mes Billets & Réservations</h1>
+            <p class="meta" style="margin-bottom:8px;">Espace Personnel</p>
+            <h1 class="display" style="font-size:var(--t-1);">Mes Billets Officiels</h1>
         </div>
 
         {% if tickets is not empty %}
-        <button type="button" onclick="window.print()" class="no-print inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700 font-semibold text-xs tracking-wider transition shadow-lg">
-            <span>🖨️</span> <span>Imprimer mes billets</span>
+        <button type="button" onclick="window.print()" class="btn btn-ghost no-print" style="height:40px;padding-inline:18px;">
+            Imprimer les billets
         </button>
         {% endif %}
     </div>
 
-    <!-- Feedback Banner if arriving from checkout -->
-    <div id="success-alert" class="hidden no-print p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-sm flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <span class="text-2xl">🎉</span>
-            <div>
-                <div class="font-bold text-white">Paiement validé avec succès !</div>
-                <div class="text-xs text-emerald-300">Vos places ont été confirmées et vos billets officiels sont prêts ci-dessous.</div>
-            </div>
+    <!-- Success notice -->
+    <div id="success-alert" class="hidden no-print" style="margin-top:24px;padding:16px 20px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <strong style="color:var(--cream);">Paiement validé avec succès.</strong>
+            <span class="meta" style="margin-left:8px;">Vos billets d'entrée sont émis ci-dessous.</span>
         </div>
-        <button type="button" onclick="document.getElementById('success-alert').remove()" class="text-emerald-400 hover:text-white text-xs">✕</button>
+        <button type="button" onclick="document.getElementById('success-alert').remove()" class="meta" style="cursor:pointer;">✕</button>
     </div>
 
-    <!-- Tickets Stack -->
-    {% if not isAuthenticated %}
-        <div class="glass-panel border border-slate-800 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
-            <span class="text-4xl">🔐</span>
-            <h2 class="font-serif text-2xl font-bold text-white">Connexion requise</h2>
-            <p class="text-slate-400 text-sm">
-                Veuillez vous connecter pour consulter vos billets officiels. Utilisez le sélecteur rapide ci-dessus pour tester en 1 clic (Client Alice).
-            </p>
-        </div>
-    {% elseif tickets is empty %}
-        <div class="glass-panel border border-slate-800 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
-            <span class="text-4xl">🎟️</span>
-            <h2 class="font-serif text-2xl font-bold text-white">Aucun billet pour le moment</h2>
-            <p class="text-slate-400 text-sm">
-                Vous n'avez pas encore acheté de billets pour la saison 2026-2027.
-            </p>
-            <a href="/" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 text-theater-950 font-bold text-xs uppercase tracking-wider transition">
-                Découvrir la saison
-            </a>
-        </div>
-    {% else %}
-        <div class="grid grid-cols-1 gap-6">
+    <!-- Tickets List -->
+    <div style="margin-top:40px;display:grid;gap:24px;">
+        {% if not isAuthenticated %}
+            <div style="text-align:center;padding:64px 20px;border:1px solid var(--rule);border-radius:4px;">
+                <h2 class="display" style="font-size:var(--t-3);margin-bottom:8px;">Connexion requise</h2>
+                <p class="meta" style="margin-bottom:24px;">Veuillez vous connecter pour afficher vos billets.</p>
+                <a href="/login" class="btn btn-solid">Se connecter</a>
+            </div>
+        {% elseif tickets is empty %}
+            <div style="text-align:center;padding:64px 20px;border:1px solid var(--rule);border-radius:4px;">
+                <h2 class="display" style="font-size:var(--t-3);margin-bottom:8px;">Aucun billet actif</h2>
+                <p class="meta" style="margin-bottom:24px;">Vous n'avez pas encore acheté de places pour la saison 2026-2027.</p>
+                <a href="/#programme" class="btn btn-solid">Découvrir le programme</a>
+            </div>
+        {% else %}
             {% for ticket in tickets %}
             {% set event = ticket.event %}
             {% set seat = ticket.seat %}
             {% set zone = seat.zone %}
             {% set canonicalCode = 'EMC-' ~ event.id ~ '-' ~ ticket.id %}
 
-            <!-- Luxury Ticket Card with Perforation -->
-            <div class="ticket-card relative rounded-2xl glass-panel-gold border border-gold-500/30 overflow-hidden shadow-2xl flex flex-col md:flex-row justify-between items-stretch">
-                
-                <!-- Ticket Main Body -->
-                <div class="p-6 sm:p-8 flex-grow space-y-6">
-                    
-                    <!-- Theater Header -->
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gold-500/20 pb-4">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">🎭</span>
-                            <div>
-                                <div class="font-serif font-bold text-white tracking-wide">Théâtre Royal de la Ville</div>
-                                <div class="text-[10px] uppercase tracking-widest text-gold-400 font-semibold">Billet d'Entrée Officiel</div>
-                            </div>
-                        </div>
-
-                        <div class="ticket-badge px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                            PAYÉ & CONFIRMÉ
-                        </div>
+            <article class="ticket-card">
+                <div class="ticket-main">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span class="meta" style="text-transform:uppercase;letter-spacing:0.05em;">Théâtre Royal · Billet d'entrée officiel</span>
+                        <span class="meta" style="color:var(--crimson);font-weight:500;">Place Confirmée</span>
                     </div>
 
-                    <!-- Spectacle Details -->
-                    <div class="space-y-2">
-                        <h2 class="ticket-title font-serif text-2xl sm:text-3xl font-bold text-gold-300">
+                    <div>
+                        <h2 class="display ticket-title" style="font-size:1.6rem;line-height:1.2;">
                             {{ event.title }}
                         </h2>
-                        <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-300 pt-1">
-                            <div class="flex items-center gap-1.5 font-medium">
-                                <span>📅</span>
-                                <span>{{ event.startsAt ? event.startsAt|date('l d F Y à H:i') : '' }}</span>
-                            </div>
-                            <span class="text-slate-600 hidden sm:inline">•</span>
-                            <div class="flex items-center gap-1.5 text-gold-400 font-semibold">
-                                <span>🏛️</span>
-                                <span>{{ zone ? zone.name.value : 'Zone Standard' }}</span>
-                            </div>
+                        <p class="meta" style="margin-top:6px;font-family:monospace;">
+                            {{ event.startsAt ? event.startsAt|date('l d F Y à H:i') : '' }}
+                        </p>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:16px;border-top:1px solid var(--rule);padding-top:16px;">
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;">Zone</span>
+                            <span style="font-weight:500;font-size:var(--t-5);">{{ zone ? zone.name.value : 'Standard' }}</span>
+                        </div>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;">Rang & Siège</span>
+                            <span style="font-weight:500;font-size:var(--t-5);">Rang {{ seat.rowLabel }} — N° {{ seat.seatNumber }}</span>
+                        </div>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;">Tarif</span>
+                            <span style="font-weight:500;font-size:var(--t-5);">{{ (ticket.finalPriceCents / 100)|number_format(0) }} MAD</span>
                         </div>
                     </div>
 
-                    <!-- Seat Details Badges & Buyer Info -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                        <div class="p-3 rounded-xl bg-theater-950/70 border border-gold-500/20">
-                            <div class="text-[10px] uppercase tracking-wider text-slate-400">Rang</div>
-                            <div class="font-serif text-xl font-bold text-white">{{ seat.rowLabel }}</div>
-                        </div>
-                        <div class="p-3 rounded-xl bg-theater-950/70 border border-gold-500/20">
-                            <div class="text-[10px] uppercase tracking-wider text-slate-400">N° Siège</div>
-                            <div class="font-serif text-xl font-bold text-white">{{ seat.seatNumber }}</div>
-                        </div>
-                        <div class="p-3 rounded-xl bg-theater-950/70 border border-gold-500/20">
-                            <div class="text-[10px] uppercase tracking-wider text-slate-400">Prix Réglé</div>
-                            <div class="font-mono text-xl font-bold text-gold-400">{{ (ticket.finalPriceCents / 100)|number_format(0) }} MAD</div>
-                        </div>
-                        <div class="p-3 rounded-xl bg-theater-950/70 border border-gold-500/20">
-                            <div class="text-[10px] uppercase tracking-wider text-slate-400">Identifiant</div>
-                            <div class="font-mono text-xs font-bold text-slate-300 truncate mt-1">#{{ canonicalCode }}</div>
-                        </div>
-                    </div>
-
-                    <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2">
-                        <span>Acheteur : <strong class="text-slate-400">{{ ticket.user.email }}</strong></span>
-                        <span>Émis le : {{ ticket.paidAt ? ticket.paidAt|date('d/m/Y H:i') : '' }}</span>
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px;">
+                        <span>Titulaire : {{ ticket.user.email }}</span>
+                        <span style="font-family:monospace;">#{{ canonicalCode }}</span>
                     </div>
                 </div>
 
-                <!-- Perforated Stub Divider (Visual Dashed Line with notches) -->
-                <div class="hidden md:flex flex-col justify-between items-center w-8 relative ticket-stub border-l border-dashed border-gold-500/40">
-                    <div class="w-6 h-6 rounded-full bg-theater-950 border border-gold-500/30 -mt-3"></div>
-                    <div class="w-6 h-6 rounded-full bg-theater-950 border border-gold-500/30 -mb-3"></div>
-                </div>
-
-                <!-- Ticket Stub with Dynamic QR Code -->
-                <div class="p-6 sm:p-8 bg-theater-950/90 border-t md:border-t-0 md:border-l border-gold-500/20 flex flex-col items-center justify-center text-center space-y-3 min-w-[220px]">
-                    <div class="text-[10px] uppercase tracking-widest text-gold-400 font-bold">Contrôle d'Accès</div>
-                    
-                    <!-- Dynamic QR Code Container -->
-                    <div id="qrcode-{{ ticket.id }}" class="bg-white p-2.5 rounded-xl shadow-lg" data-payload="{{ canonicalCode }}"></div>
-                    
-                    <div class="font-mono text-xs font-bold text-gold-300 tracking-wider">
+                <div class="ticket-stub">
+                    <div id="qrcode-{{ ticket.id }}" style="background:#fff;padding:8px;border-radius:4px;" data-payload="{{ canonicalCode }}"></div>
+                    <span style="font-family:monospace;font-size:0.75rem;color:var(--muted);letter-spacing:0.05em;">
                         {{ canonicalCode }}
-                    </div>
-                    <div class="text-[10px] text-slate-400 max-w-[150px] leading-tight">
-                        Présentez ce QR code à l'entrée de la salle
-                    </div>
+                    </span>
                 </div>
-
-            </div>
+            </article>
             {% endfor %}
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
 
 </div>
 {% endblock %}
 
 {% block javascripts %}
-<!-- QRCode.js CDN for client-side rendering -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Detect success parameter
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success') === '1') {
             const alert = document.getElementById('success-alert');
             if (alert) alert.classList.remove('hidden');
         }
 
-        // Generate QR Codes dynamically for every ticket card
         document.querySelectorAll('[id^="qrcode-"]').forEach(el => {
             const payload = el.getAttribute('data-payload');
             if (payload && typeof QRCode !== 'undefined') {
                 el.innerHTML = '';
                 new QRCode(el, {
                     text: payload,
-                    width: 108,
-                    height: 108,
-                    colorDark: '#07090e',
+                    width: 96,
+                    height: 96,
+                    colorDark: '#0C0A0B',
                     colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.H
                 });

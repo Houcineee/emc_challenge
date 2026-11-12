@@ -1,117 +1,162 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Guichet POS & Contrôle d'Accès | Théâtre Royal{% endblock %}
+{% block title %}Guichet — Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .panel-box {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+    }
+
+    .cashier-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: 40px;
+        align-items: start;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--t-5);
+        color: var(--muted);
+        border: 1px solid var(--rule);
+        padding: 6px 14px;
+        border-radius: 999px;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+    }
+
+    .cashier-event-item {
+        border: 1px solid var(--rule);
+        background: var(--ink);
+        border-radius: 4px;
+        padding: 18px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    .cashier-event-item:last-child {
+        margin-bottom: 0;
+    }
+
+    @media (max-width: 960px) {
+        .cashier-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block body %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+<div class="wrap" style="padding-top:48px;padding-bottom:96px;">
 
     {% if not isAuthorized %}
-    <!-- Unauthorized Banner -->
-    <div class="glass-panel border border-sky-500/30 rounded-3xl p-10 text-center max-w-2xl mx-auto space-y-4">
-        <span class="text-4xl">🎫</span>
-        <h1 class="font-serif text-3xl font-bold text-white">Guichet & Contrôle d'Accès</h1>
-        <p class="text-slate-300 text-sm">
-            Cet espace de vente physique et de validation des billets est réservé aux rôles <strong class="text-sky-400">GUICHETIER</strong> ou <strong class="text-gold-400">ADMINISTRATEUR</strong>.
+    <div class="panel-box" style="max-width:520px;margin:48px auto;text-align:center;padding:48px 32px;">
+        <p class="meta" style="text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Guichet & Portes</p>
+        <h1 class="display" style="font-size:var(--t-2);margin-bottom:12px;">Espace Réservé au Guichet</h1>
+        <p class="meta" style="margin-bottom:28px;">
+            Cet espace de vente au comptoir et de contrôle des entrées requiert le rôle Guichetier ou Administrateur.
         </p>
-        <div class="pt-2">
-            <button type="button" onclick="quickLogin('CASHIER')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-sky-500/20 transition">
-                🎫 Activer le profil Guichetier en 1 clic
-            </button>
+        <div>
+            <a href="/login" class="btn btn-solid">
+                Se connecter
+            </a>
         </div>
     </div>
     {% else %}
 
-    <!-- Cashier Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+    <!-- Header -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:40px;">
         <div>
-            <div class="text-xs uppercase tracking-widest text-sky-400 font-bold">Guichet & Portes</div>
-            <h1 class="font-serif text-3xl sm:text-4xl font-bold text-white mt-1">Contrôle d'Accès & Point de Vente (POS)</h1>
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Guichet & Portes</p>
+            <h1 class="display" style="font-size:var(--t-1);">Contrôle d'Accès & Point de Vente</h1>
         </div>
 
-        <div class="flex items-center gap-2">
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="text-xs font-mono text-slate-300">Scanner QR & API Opérationnels</span>
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            <span style="font-family:monospace;">Système actif</span>
         </div>
     </div>
 
-    <!-- Main Workspace Split: Scanner QR & Vente Directe -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <!-- Workspace -->
+    <div class="cashier-grid">
         
-        <!-- Left: QR Code Verification Tester (7 cols) -->
-        <div class="lg:col-span-7 space-y-6">
-            <div class="glass-panel-gold border border-gold-500/30 rounded-2xl p-6 shadow-2xl space-y-6">
-                
-                <div class="flex items-center justify-between border-b border-gold-500/20 pb-3">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xl">🔍</span>
-                        <h2 class="font-serif text-xl font-bold text-white">Testeur de Scan QR Code Billet</h2>
-                    </div>
-                    <span class="text-[11px] font-mono text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded border border-gold-500/20">Entrée Salle</span>
+        <!-- Left: Ticket Verification -->
+        <div>
+            <div class="panel-box">
+                <div style="border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                    <h2 class="display" style="font-size:var(--t-3);margin-bottom:6px;">Vérification de Billet</h2>
+                    <p class="meta">
+                        Saisissez ou scannez le code d'accès du billet (format <code>EMC-{id}-{id}</code>).
+                    </p>
                 </div>
 
-                <p class="text-xs text-slate-300">
-                    Saisissez ou collez le code QR scanné (format canonique <code>EMC-{eventId}-{ticketId}</code> ou identifiant direct de billet) pour valider l'entrée du spectateur en temps réel.
-                </p>
-
-                <!-- Scan Input Form -->
-                <form onsubmit="handleVerifyTicket(event)" class="space-y-3">
-                    <div class="flex gap-2">
-                        <input type="text" id="qr-input" autofocus placeholder="Ex: EMC-1-1 ou EMC-2-12" class="flex-grow bg-theater-900 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-gold-500 transition">
-                        <button type="submit" class="px-6 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 transition flex items-center gap-1.5">
-                            <span>Vérifier</span>
+                <form onsubmit="handleVerifyTicket(event)" style="margin-bottom:24px;">
+                    <div style="display:flex;gap:10px;margin-bottom:16px;">
+                        <input type="text" id="qr-input" autofocus placeholder="EMC-1-1" style="flex:1;background:var(--ink);border:1px solid var(--rule);color:var(--cream);font-family:monospace;font-size:var(--t-4);padding:12px 16px;border-radius:4px;outline:none;transition:border-color .2s;">
+                        <button type="submit" class="btn btn-solid" style="height:46px;padding-inline:24px;">
+                            Vérifier
                         </button>
                     </div>
 
-                    <!-- Test Shortcut Pills -->
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400 pt-1">
-                        <span>Tests 1-clic :</span>
-                        <button type="button" onclick="fillAndVerify('EMC-1-1')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
-                            EMC-1-1 (Billet Valide)
-                        </button>
-                        <button type="button" onclick="fillAndVerify('EMC-1-2')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
-                            EMC-1-2 (Billet Valide)
-                        </button>
-                        <button type="button" onclick="fillAndVerify('EMC-99-999')" class="px-2.5 py-1 rounded-lg bg-theater-800 hover:bg-theater-700 text-slate-200 border border-slate-700 text-[11px] font-mono transition">
-                            EMC-99-999 (Inexistant)
-                        </button>
+                    <div style="display:flex;align-items:center;gap:10px;font-size:var(--t-5);color:var(--muted);flex-wrap:wrap;">
+                        <span>Exemples de test :</span>
+                        <button type="button" onclick="fillAndVerify('EMC-1-1')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-1-1</button>
+                        <span>·</span>
+                        <button type="button" onclick="fillAndVerify('EMC-1-2')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-1-2</button>
+                        <span>·</span>
+                        <button type="button" onclick="fillAndVerify('EMC-99-99')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-99-99</button>
                     </div>
                 </form>
 
-                <!-- Verification Result Display Area -->
-                <div id="verification-result-box" class="hidden rounded-2xl border p-6 space-y-4 transition-all">
-                    <!-- Populated dynamically via JS -->
-                </div>
-
+                <!-- Result Box -->
+                <div id="verification-result-box" class="hidden"></div>
             </div>
         </div>
 
-        <!-- Right: Vente Express Guichet POS (5 cols) -->
-        <div class="lg:col-span-5 space-y-6">
-            <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-                <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
-                    <span class="text-xl">💳</span>
-                    <h2 class="font-serif text-xl font-bold text-white">Vente Express au Comptoir</h2>
+        <!-- Right: Vente Express Comptoir -->
+        <div>
+            <div class="panel-box">
+                <div style="border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                    <h2 class="display" style="font-size:var(--t-3);margin-bottom:6px;">Vente au Comptoir</h2>
+                    <p class="meta">
+                        Sélectionnez un spectacle pour ouvrir la salle 3D et émettre un billet physique :
+                    </p>
                 </div>
 
-                <p class="text-xs text-slate-400">
-                    Pour vendre une place physiquement à un client se présentant au guichet, sélectionnez le spectacle pour ouvrir le plan 3D de vente :
-                </p>
-
-                <div class="space-y-3">
+                <div>
                     {% for ev in events %}
-                    <div class="p-4 rounded-xl bg-theater-900/60 border border-slate-800 hover:border-gold-500/30 transition flex items-center justify-between gap-3">
-                        <div class="space-y-0.5">
-                            <div class="font-serif font-bold text-white text-sm">{{ ev.title }}</div>
-                            <div class="text-[11px] text-slate-400">{{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}</div>
-                            <div class="text-[11px] text-gold-400 font-semibold">Dès {{ (ev.basePriceCents / 100)|number_format(0) }} MAD</div>
+                    <div class="cashier-event-item">
+                        <div>
+                            <div class="display" style="font-size:var(--t-4);font-weight:500;">{{ ev.title }}</div>
+                            <div style="font-family:monospace;font-size:var(--t-5);color:var(--muted);margin-top:2px;">
+                                {{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}
+                            </div>
+                            <div style="font-size:var(--t-5);color:var(--crimson);font-weight:500;margin-top:4px;">
+                                Dès {{ (ev.basePriceCents / 100)|number_format(0) }} MAD
+                            </div>
                         </div>
 
-                        <a href="/events/{{ ev.id }}" class="px-3.5 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-theater-950 font-bold text-xs uppercase tracking-wider transition shadow">
-                            Ouvrir Salle 3D
+                        <a href="/events/{{ ev.id }}" class="btn btn-ghost" style="height:36px;padding-inline:16px;">
+                            Ouvrir
                         </a>
                     </div>
                     {% else %}
-                    <div class="text-center py-6 text-slate-400 text-xs">
+                    <div style="text-align:center;padding:36px;color:var(--muted);font-size:var(--t-5);">
                         Aucun spectacle programmé.
                     </div>
                     {% endfor %}
@@ -141,9 +186,10 @@
 
         if (!code) return;
 
-        box.className = 'rounded-2xl border p-6 space-y-4 bg-theater-900/90 border-slate-700';
-        box.innerHTML = `<div class="text-center text-xs text-slate-400">Interrogation de la base de données...</div>`;
+        box.style.display = 'block';
         box.classList.remove('hidden');
+        box.setAttribute('style', 'display:block;border:1px solid var(--rule);background:rgba(243,234,219,0.03);border-radius:4px;padding:20px;text-align:center;color:var(--muted);font-size:var(--t-5);');
+        box.innerText = 'Vérification en cours...';
 
         try {
             const res = await fetch('/api/cashier/verify-ticket', {
@@ -156,60 +202,47 @@
 
             if (res.ok && data.valid && data.status === 'PAID') {
                 const t = data.ticket;
-                box.className = 'rounded-2xl border p-6 space-y-4 bg-emerald-950/80 border-emerald-500/50 text-white shadow-2xl';
+                box.setAttribute('style', 'display:block;border:1px solid rgba(52,211,153,0.4);background:rgba(52,211,153,0.06);border-radius:4px;padding:24px;');
                 box.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">✅</span>
-                        <div>
-                            <div class="font-serif text-xl font-bold text-emerald-300">ACCÈS AUTORISÉ — BILLET VALIDE</div>
-                            <div class="text-xs text-emerald-200/90">${data.message}</div>
-                        </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(52,211,153,0.25);padding-bottom:14px;margin-bottom:18px;">
+                        <span class="display" style="font-size:var(--t-3);color:#34d399;font-weight:500;">Accès Autorisé</span>
+                        <span style="font-family:monospace;font-size:0.75rem;text-transform:uppercase;color:#34d399;border:1px solid rgba(52,211,153,0.4);padding:3px 10px;border-radius:999px;">Billet Valide</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
-                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
-                            <span class="text-slate-400 block text-[10px] uppercase">Spectacle</span>
-                            <span class="font-bold text-white">${t.eventTitle}</span>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:var(--t-5);">
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Spectacle</span>
+                            <span style="color:var(--cream);font-weight:500;">${t.eventTitle}</span>
                         </div>
-                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
-                            <span class="text-slate-400 block text-[10px] uppercase">Emplacement</span>
-                            <span class="font-bold text-gold-400">${t.zoneName} — Rang ${t.seatRow}, Place ${t.seatNumber}</span>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Emplacement</span>
+                            <span style="color:var(--cream);font-weight:500;">${t.zoneName} — Rang ${t.seatRow}, Place ${t.seatNumber}</span>
                         </div>
-                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
-                            <span class="text-slate-400 block text-[10px] uppercase">Titulaire</span>
-                            <span class="font-bold text-white truncate block">${t.buyerEmail}</span>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Titulaire</span>
+                            <span style="color:var(--muted);">${t.buyerEmail}</span>
                         </div>
-                        <div class="p-2.5 rounded-xl bg-theater-950/60 border border-emerald-500/20">
-                            <span class="text-slate-400 block text-[10px] uppercase">Prix Payé</span>
-                            <span class="font-bold font-mono text-white">${Math.round(t.finalPriceCents / 100)} MAD</span>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Montant</span>
+                            <span style="font-family:monospace;color:var(--cream);font-weight:500;">${Math.round(t.finalPriceCents / 100)} MAD</span>
                         </div>
                     </div>
                 `;
             } else if (data.status === 'REFUNDED') {
-                box.className = 'rounded-2xl border p-6 space-y-3 bg-rose-950/80 border-rose-500/50 text-white shadow-2xl';
+                box.setAttribute('style', 'display:block;border:1px solid rgba(179,18,31,0.5);background:rgba(179,18,31,0.08);border-radius:4px;padding:24px;');
                 box.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">⛔</span>
-                        <div>
-                            <div class="font-serif text-xl font-bold text-rose-300">ACCÈS REFUSÉ — BILLET REMBOURSÉ</div>
-                            <div class="text-xs text-rose-200/90">${data.message}</div>
-                        </div>
-                    </div>
+                    <div class="display" style="font-size:var(--t-3);color:var(--crimson);margin-bottom:6px;">Accès Refusé</div>
+                    <div style="color:var(--muted);font-size:var(--t-5);">${data.message || 'Ce billet a été remboursé.'}</div>
                 `;
             } else {
-                box.className = 'rounded-2xl border p-6 space-y-3 bg-amber-950/80 border-amber-500/50 text-white shadow-2xl';
+                box.setAttribute('style', 'display:block;border:1px solid var(--rule);background:rgba(243,234,219,0.04);border-radius:4px;padding:24px;');
                 box.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">⚠️</span>
-                        <div>
-                            <div class="font-serif text-xl font-bold text-amber-300">BILLET INVALIDE OU INTROUVABLE</div>
-                            <div class="text-xs text-amber-200/90">${data.error || 'Aucun billet ne correspond à ce code QR.'}</div>
-                        </div>
-                    </div>
+                    <div class="display" style="font-size:var(--t-3);color:var(--cream);margin-bottom:6px;">Billet Non Trouvé</div>
+                    <div style="color:var(--muted);font-size:var(--t-5);">${data.error || 'Aucun billet correspondant trouvé.'}</div>
                 `;
             }
         } catch (err) {
-            box.className = 'rounded-2xl border p-4 bg-rose-950/80 border-rose-500/50 text-rose-200 text-xs';
-            box.innerText = 'Erreur lors de la communication avec le serveur de vérification.';
+            box.setAttribute('style', 'display:block;border:1px solid rgba(179,18,31,0.5);background:rgba(179,18,31,0.08);border-radius:4px;padding:20px;color:var(--crimson);font-size:var(--t-5);');
+            box.innerText = 'Erreur réseau lors de la vérification.';
         }
     }
 </script>

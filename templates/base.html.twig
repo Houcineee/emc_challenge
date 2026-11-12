@@ -1,249 +1,350 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Théâtre Royal — Billetterie Officielle{% endblock %}</title>
     
-    <!-- Google Fonts: Playfair Display & Plus Jakarta Sans -->
+    <!-- Google Fonts: Playfair Display & Inter Tight -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        serif: ['"Playfair Display"', 'serif'],
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
-                    colors: {
-                        theater: {
-                            950: '#07090e',
-                            900: '#0c0e15',
-                            850: '#111520',
-                            800: '#171c2b',
-                            700: '#232a3f',
-                            600: '#343e5c',
-                        },
-                        gold: {
-                            300: '#fde047',
-                            400: '#facc15',
-                            500: '#f59e0b',
-                            600: '#d97706',
-                            700: '#b45309',
-                        },
-                        velvet: {
-                            800: '#4c0519',
-                            900: '#2b030e',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Custom Luxury Theater Styles -->
+    <!-- Ravensgate Opera Design System Tokens -->
     <style>
+        :root {
+            /* Type scale */
+            --t-1: clamp(2.5rem, 5vw, 4.25rem);
+            --t-2: clamp(1.8rem, 3vw, 2.5rem);
+            --t-3: 1.35rem;
+            --t-4: 1.05rem;
+            --t-5: 0.8125rem;
+
+            /* Ravensgate Palette */
+            --ink: #0C0A0B;
+            --ink-2: #171316;
+            --crimson: #B3121F;
+            --crimson-hover: #C8172A;
+            --crimson-deep: #6A0A12;
+            --cream: #F3EADB;
+            --muted: #A2969A;
+            --rule: rgba(243, 234, 219, 0.14);
+
+            --display: "Playfair Display", "Iowan Old Style", Georgia, serif;
+            --sans: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+
+            --seam: clamp(64px, 8vw, 120px);
+            --wrap: 1360px;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         body {
-            background-color: #07090e;
-            color: #e2e8f0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            background: var(--ink);
+            color: var(--cream);
+            font-family: var(--sans);
+            font-size: var(--t-4);
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
         }
 
-        .font-serif {
-            font-family: 'Playfair Display', serif;
+        a { color: inherit; text-decoration: none; }
+        h1, h2, h3, p, ul, ol { margin: 0; }
+        ul, ol { padding: 0; list-style: none; }
+        button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+        .wrap {
+            max-width: var(--wrap);
+            margin-inline: auto;
+            padding-inline: clamp(20px, 4vw, 48px);
         }
 
-        /* Glassmorphism surfaces */
-        .glass-panel {
-            background: rgba(17, 21, 32, 0.75);
+        .meta {
+            font-size: var(--t-5);
+            letter-spacing: 0.01em;
+            color: var(--muted);
+        }
+        .meta strong { color: var(--cream); font-weight: 500; }
+
+        .display { font-family: var(--display); font-weight: 400; letter-spacing: -0.01em; }
+        em { font-style: italic; }
+
+        section { padding-block: var(--seam); }
+        section + section { border-top: 1px solid var(--rule); }
+
+        .section-head {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: end;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        .section-head h2 { font-size: var(--t-2); line-height: 1.05; max-width: 20ch; }
+        .section-head .meta { padding-bottom: 6px; }
+
+        .arrow-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: var(--t-5);
+            color: var(--cream);
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 4px;
+            transition: border-color .2s, color .2s;
+        }
+        .arrow-link:hover { color: var(--crimson); border-color: var(--crimson); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            height: 46px;
+            padding-inline: 24px;
+            border-radius: 999px;
+            font-size: var(--t-5);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: background .2s, color .2s, border-color .2s, transform .15s;
+        }
+        .btn-solid { background: var(--crimson); color: var(--cream); }
+        .btn-solid:hover { background: var(--crimson-hover); }
+        .btn-ghost { border: 1px solid var(--rule); color: var(--cream); }
+        .btn-ghost:hover { border-color: var(--cream); }
+
+        /* Navigation */
+        .nav {
+            border-bottom: 1px solid var(--rule);
+            background: rgba(12, 10, 11, 0.92);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .nav .wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+            gap: 24px;
+            max-width: 1560px;
+            margin-inline: 0;
+            margin-left: clamp(24px, 5vw, 88px);
+            margin-right: clamp(24px, 5vw, 88px);
+            padding-inline: 0;
+        }
+        .wordmark {
+            font-family: var(--display);
+            font-size: 1.45rem;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .wordmark span {
+            font-family: var(--sans);
+            font-size: var(--t-5);
+            color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+        .nav-links { display: flex; gap: 28px; font-size: var(--t-5); }
+        .nav-links a { color: var(--muted); transition: color .2s; }
+        .nav-links a:hover { color: var(--cream); }
+        .nav-cta { display: flex; align-items: center; gap: 16px; }
+
+        .cart-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 38px;
+            padding-inline: 14px;
+            border-radius: 999px;
+            border: 1px solid var(--rule);
+            font-size: var(--t-5);
+            color: var(--cream);
+            transition: border-color .2s;
+        }
+        .cart-pill:hover { border-color: var(--cream); }
+        .cart-badge {
+            background: var(--crimson);
+            color: var(--cream);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+        .cart-timer {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-left: 2px;
         }
 
-        .glass-panel-gold {
-            background: rgba(20, 24, 38, 0.85);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--rule);
+            padding-block: 64px 40px;
+            background: var(--ink-2);
+            margin-top: 96px;
+        }
+        .foot-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+            gap: 40px;
+        }
+        .foot-grid h3 {
+            font-size: var(--t-5);
+            color: var(--muted);
+            font-weight: 400;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .foot-grid ul { display: grid; gap: 10px; font-size: var(--t-5); }
+        .foot-grid a { color: var(--muted); transition: color .2s; }
+        .foot-grid a:hover { color: var(--cream); }
+        .foot-brand p {
+            color: var(--muted);
+            font-size: var(--t-5);
+            max-width: 36ch;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+        .foot-bottom {
+            margin-top: 48px;
+            padding-top: 22px;
+            border-top: 1px solid var(--rule);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: var(--t-5);
+            color: var(--muted);
         }
 
-        /* Subtle gold gradient text */
-        .gold-gradient-text {
-            background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #b45309 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--ink); }
+        ::-webkit-scrollbar-thumb { background: #262024; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--crimson); }
 
-        .gold-border-glow {
-            box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25);
+        @media (max-width: 960px) {
+            .nav-links { display: none; }
+            .foot-grid { grid-template-columns: 1fr 1fr; }
         }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #07090e;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #232a3f;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #d97706;
+        @media (max-width: 640px) {
+            .foot-grid { grid-template-columns: 1fr; }
         }
     </style>
 
     {% block stylesheets %}{% endblock %}
 </head>
-<body class="min-h-screen flex flex-col bg-theater-950 text-slate-200 antialiased selection:bg-gold-500 selection:text-black">
+<body>
 
-    <!-- Top Evaluator Demo Bar (Permet de tester les 3 rôles instantanément) -->
-    <div class="bg-theater-900/90 border-b border-theater-800 text-xs py-1.5 px-4 sticky top-0 z-50 backdrop-blur-md">
-        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2 text-slate-400">
-                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="font-medium text-slate-300">PFE EMC Challenge</span>
-                <span class="text-theater-700">|</span>
-                <span>Rôle actuel :</span>
-                <span id="current-role-badge" class="font-semibold text-gold-400 uppercase tracking-wider px-2 py-0.5 rounded bg-gold-500/10 border border-gold-500/20">
-                    {{ app.user ? app.user.role.value : 'ANONYME' }}
-                </span>
-                {% if app.user %}
-                <span class="text-slate-500">({{ app.user.email }})</span>
-                {% endif %}
-            </div>
-
-            <!-- Boutons Quick Login 1-clic pour l'évaluation -->
-            <div class="flex items-center gap-1.5">
-                <span class="text-slate-400 mr-1 hidden sm:inline">Tester en 1 clic :</span>
-                <button onclick="quickLogin('ADMIN')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
-                    👑 <span>Admin</span>
-                </button>
-                <button onclick="quickLogin('CASHIER')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
-                    🎫 <span>Guichet</span>
-                </button>
-                <button onclick="quickLogin('CLIENT')" class="px-2.5 py-1 rounded bg-theater-800 hover:bg-theater-700 text-slate-200 hover:text-white border border-slate-700/60 transition text-xs font-medium flex items-center gap-1">
-                    👤 <span>Client Alice</span>
-                </button>
-                {% if app.user %}
-                <button onclick="logout()" class="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 transition text-xs">
-                    Déconnexion
-                </button>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Navigation Header -->
-    <header class="glass-panel border-b border-theater-800/80 sticky top-[33px] z-40 transition-all">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            
-            <!-- Brand Logo -->
-            <a href="/" class="flex items-center gap-3 group">
-                <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-gold-400 via-gold-500 to-gold-700 p-0.5 shadow-lg shadow-gold-500/10 group-hover:shadow-gold-500/25 transition">
-                    <div class="w-full h-full bg-theater-950 rounded-[7px] flex items-center justify-center">
-                        <span class="text-xl">🎭</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="font-serif text-2xl font-bold tracking-tight text-white group-hover:text-gold-400 transition">
-                        Le Théâtre
-                    </div>
-                    <div class="text-[10px] uppercase tracking-[0.2em] text-gold-500 font-semibold -mt-1">
-                        Scène & Billetterie
-                    </div>
-                </div>
+    <!-- Primary Navigation -->
+    <header class="nav">
+        <div class="wrap">
+            <a class="wordmark" href="/">
+                Théâtre Royal <span>Scène & Billetterie</span>
             </a>
-
-            <!-- Nav Links -->
-            <nav class="hidden md:flex items-center gap-8 text-sm font-medium">
-                <a href="/" class="text-slate-300 hover:text-gold-400 transition flex items-center gap-1.5">
-                    <span>Spectacles & Saison</span>
-                </a>
-                <a href="/tickets/my" class="text-slate-300 hover:text-gold-400 transition flex items-center gap-1.5">
-                    <span>Mes Billets</span>
-                </a>
+            <nav class="nav-links" aria-label="Navigation principale">
+                <a href="/#programme">Programme</a>
+                <a href="/#calendrier">Calendrier</a>
+                <a href="/#tarifs">Tarifs</a>
+                <a href="/tickets/my">Mes Billets</a>
                 {% if is_granted('ROLE_ADMIN') %}
-                <a href="/admin" class="text-amber-400 hover:text-amber-300 transition flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-                    <span>👑 Administration</span>
-                </a>
+                <a href="/admin" style="color:var(--crimson)">Direction</a>
                 {% endif %}
                 {% if is_granted('ROLE_CASHIER') or is_granted('ROLE_ADMIN') %}
-                <a href="/cashier" class="text-sky-400 hover:text-sky-300 transition flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/30">
-                    <span>🎫 Guichet POS</span>
-                </a>
+                <a href="/cashier">Guichet</a>
                 {% endif %}
             </nav>
-
-            <!-- Cart Pill & Quick CTA -->
-            <div class="flex items-center gap-4">
-                <a href="/checkout" id="cart-header-button" class="relative group px-4 py-2.5 rounded-full glass-panel hover:glass-panel-gold border border-slate-700 hover:border-gold-500/50 transition flex items-center gap-2.5 text-sm">
-                    <span class="text-gold-400">🛒</span>
-                    <span class="font-medium text-slate-200">Panier</span>
-                    <span id="cart-count-badge" class="px-2 py-0.5 rounded-full bg-gold-500 text-theater-950 font-bold text-xs">
-                        0
+            <div class="nav-cta">
+                <a href="/checkout" class="cart-pill" id="cart-header-button">
+                    <span>Panier</span>
+                    <span class="cart-badge" id="cart-count-badge">0</span>
+                    <span class="cart-timer hidden" id="cart-timer-container">
+                        <span id="cart-timer-display">15:00</span>
                     </span>
-                    <div id="cart-timer-container" class="hidden text-xs font-mono text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded border border-gold-500/20">
-                        ⏱️ <span id="cart-timer-display">15:00</span>
-                    </div>
                 </a>
+
+                {% if app.user %}
+                <span class="meta" style="font-size:0.75rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {{ app.user.email }}
+                </span>
+                <button type="button" onclick="logout()" class="meta" style="cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:1px;">
+                    Quitter
+                </button>
+                {% else %}
+                <a class="btn btn-ghost" href="/login" style="height:38px;padding-inline:18px;">
+                    Connexion
+                </a>
+                {% endif %}
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow">
+    <!-- Main Viewport -->
+    <main>
         {% block body %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-theater-950 border-t border-theater-800/80 mt-24 py-12 text-slate-400 text-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div class="flex items-center gap-3">
-                <span class="text-2xl">🎭</span>
+    <!-- Four-column Cultural Footer (Ravensgate Style) -->
+    <footer>
+        <div class="wrap">
+            <div class="foot-grid">
+                <div class="foot-brand">
+                    <div class="wordmark">Théâtre Royal <span>1884</span></div>
+                    <p>
+                        Salle de spectacle modulable de 400 places.<br>
+                        Avenue des Arts, Quartier des Théâtres.<br>
+                        Billetterie ouverte du mardi au samedi, 11h — 19h.
+                    </p>
+                    <p class="meta" style="margin-top:14px;">
+                        Téléphone : +212 5 28 00 00 00
+                    </p>
+                </div>
                 <div>
-                    <div class="font-serif text-white font-semibold text-base">Théâtre Royal de la Ville</div>
-                    <div class="text-xs text-slate-500">Salle de spectacle modulable de 400 places (Concerts, Théâtre & Conférences)</div>
+                    <h3>Saison 2026-2027</h3>
+                    <ul>
+                        <li><a href="/#programme">Soirée Gnawa Fusion</a></li>
+                        <li><a href="/#programme">Le Malade Imaginaire</a></li>
+                        <li><a href="/#programme">Tech Day : IA & Systèmes</a></li>
+                        <li><a href="/#programme">Concert Andalou</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Informations</h3>
+                    <ul>
+                        <li><a href="/#tarifs">Grille des tarifs</a></li>
+                        <li><a href="/tickets/my">Portefeuille de billets</a></li>
+                        <li><a href="/login">Accès administration</a></li>
+                        <li><a href="/login">Guichet & contrôle d'accès</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Légal</h3>
+                    <ul>
+                        <li><a href="#top">Conditions Générales de Vente</a></li>
+                        <li><a href="#top">Mentions Légales</a></li>
+                        <li><a href="#top">Accessibilité PMR</a></li>
+                        <li><a href="#top">Plan de salle officiel</a></li>
+                    </ul>
                 </div>
             </div>
 
-            <div class="text-xs text-slate-500 text-center md:text-right">
-                <div>Projet réalisé pour le <strong class="text-slate-300">PFE Challenge EMC</strong> — Sujet 1</div>
-                <div>Symfony 7.4 • MySQL 8 • Redis 7 • Three.js 3D</div>
+            <div class="foot-bottom">
+                <span>© 2026—2027 Théâtre Royal. Tous droits réservés.</span>
+                <span>Billetterie officielle certifiée · 400 places assises et debout</span>
             </div>
         </div>
     </footer>
 
-    <!-- Global Client Logic (Quick-Login, Cart Count & Auto-Polling) -->
+    <!-- Global Cart Script -->
     <script>
-        async function quickLogin(role) {
-            try {
-                const res = await fetch('/api/auth/quick-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role: role })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Erreur lors du changement de rôle');
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
         async function logout() {
             try {
                 await fetch('/api/auth/logout', { method: 'POST' });
@@ -253,8 +354,6 @@
             }
         }
 
-        // Live Cart Tracker
-        let cartInterval = null;
         async function updateCartHeader() {
             try {
                 const res = await fetch('/api/cart');
@@ -267,12 +366,10 @@
 
                 if (data.totalItems > 0) {
                     countBadge.innerText = data.totalItems;
-                    countBadge.classList.remove('hidden');
-
-                    // Find minimum remaining TTL across items
                     const minTtl = Math.min(...data.items.map(i => i.ttl));
                     if (minTtl > 0) {
                         timerContainer.classList.remove('hidden');
+                        timerContainer.style.display = 'inline';
                         const m = Math.floor(minTtl / 60).toString().padStart(2, '0');
                         const s = (minTtl % 60).toString().padStart(2, '0');
                         timerDisplay.innerText = `${m}:${s}`;
@@ -280,9 +377,10 @@
                 } else {
                     countBadge.innerText = '0';
                     timerContainer.classList.add('hidden');
+                    timerContainer.style.display = 'none';
                 }
             } catch (e) {
-                // ignore if unauthenticated
+                // quiet
             }
         }
 

@@ -1,149 +1,501 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Saison 2026-2027 — Les Grands Spectacles | Théâtre Royal{% endblock %}
+{% block title %}Saison d'Hiver 2026-2027 — Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    /* ---------- Ravensgate Fold ---------- */
+    .fold { min-height: calc(100svh - 72px); display: flex; flex-direction: column; }
+    .hero { flex: 1; position: relative; display: flex; align-items: center; overflow: hidden; padding-block: 0; }
+
+    /* The grand royal auditorium visual: full-bleed atmospheric backdrop */
+    .hero-visual {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        overflow: hidden; pointer-events: none;
+    }
+    .hero-visual img {
+        width: 100%; height: 100%; object-fit: cover; object-position: 72% center;
+        display: block;
+        filter: contrast(1.06) brightness(0.9);
+    }
+    .hero-visual::before {
+        content: ""; position: absolute; inset: 0; z-index: 1;
+        background:
+            linear-gradient(90deg, 
+                var(--ink) 0%, 
+                rgba(12,10,11,0.95) 18%, 
+                rgba(12,10,11,0.78) 38%, 
+                rgba(12,10,11,0.3) 62%, 
+                transparent 85%),
+            linear-gradient(180deg, 
+                rgba(12,10,11,0.7) 0%, 
+                transparent 18%, 
+                rgba(12,10,11,0.2) 65%, 
+                var(--ink) 100%);
+    }
+
+    .hero .wrap {
+        position: relative;
+        z-index: 2;
+        width: auto;
+        max-width: 1560px;
+        margin-inline: 0;
+        margin-left: clamp(24px, 5vw, 88px);
+        margin-right: auto;
+        padding-inline: 0;
+        padding-block: 72px;
+    }
+    .dateline { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+    .dateline .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--crimson);
+        box-shadow: 0 0 0 4px rgba(179,18,31,0.25);
+    }
+    .hero h1 {
+        font-size: var(--t-1); line-height: 1.02;
+        max-width: 11em; text-wrap: balance;
+    }
+    .hero-sub {
+        margin-top: 28px; max-width: 46ch;
+        color: var(--muted); font-size: var(--t-4); line-height: 1.6;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 36px; align-items: center; }
+
+    /* ---------- Strip Ticker ---------- */
+    .strip {
+        border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+        background: var(--ink-2);
+        overflow: hidden; white-space: nowrap;
+        padding-block: 14px; font-size: var(--t-5);
+    }
+    .strip-track { display: inline-flex; gap: 0; animation: slide 45s linear infinite; }
+    .strip:hover .strip-track { animation-play-state: paused; }
+    .strip-track span { padding-inline: 28px; color: var(--muted); }
+    .strip-track span b { color: var(--cream); font-weight: 500; }
+    .strip-track span::after { content: "·"; margin-left: 28px; color: var(--crimson); }
+    @keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @media (prefers-reduced-motion: reduce) { .strip-track { animation: none; } }
+
+    /* ---------- Programme Rows ---------- */
+    .programme li { border-top: 1px solid var(--rule); }
+    .programme li:last-child { border-bottom: 1px solid var(--rule); }
+    .row {
+        width: 100%; text-align: left;
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 0.9fr) auto 24px;
+        align-items: baseline; gap: 24px;
+        padding-block: 28px;
+        transition: color .2s;
+    }
+    .row:hover .title { color: var(--crimson); }
+    .row .num { font-family: var(--display); font-size: var(--t-3); color: var(--muted); }
+    .row .title { font-family: var(--display); font-size: var(--t-3); line-height: 1.15; transition: color .2s; }
+    .row .title small { display: block; font-family: var(--sans); font-size: var(--t-5); color: var(--muted); margin-top: 6px; }
+    .row .col { font-size: var(--t-5); color: var(--muted); line-height: 1.5; }
+    .row .col b { display: block; color: var(--cream); font-weight: 500; }
+    .row .price { font-size: var(--t-5); color: var(--cream); white-space: nowrap; }
+    .row .chev {
+        width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--rule);
+        display: grid; place-items: center; font-size: 12px; color: var(--muted);
+        transition: transform .25s, border-color .2s, color .2s;
+    }
+    .row[aria-expanded="true"] .chev { transform: rotate(45deg); border-color: var(--crimson); color: var(--crimson); }
+    
+    .row-detail {
+        display: none;
+        grid-template-columns: 56px minmax(0, 1.8fr) minmax(0, 1fr);
+        gap: 24px;
+        padding-bottom: 36px;
+    }
+    .row-detail.open { display: grid; }
+    .row-detail .synopsis { color: var(--muted); max-width: 56ch; line-height: 1.6; }
+    .row-detail .credits { font-size: var(--t-5); color: var(--muted); display: grid; gap: 8px; }
+    .row-detail .credits b { color: var(--cream); font-weight: 500; }
+    .row-detail .credits div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; }
+    .tag {
+        display: inline-block; font-size: var(--t-5); color: var(--crimson);
+        border: 1px solid rgba(179,18,31,0.5); border-radius: 999px;
+        padding: 2px 10px; margin-bottom: 12px;
+    }
+
+    /* ---------- Architecture Editorial ---------- */
+    .spot { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .spot-visual {
+        position: relative; aspect-ratio: 4/5; overflow: hidden;
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        background: var(--ink-2);
+    }
+    .spot-visual img {
+        width: 100%; height: 100%; object-fit: cover; object-position: center;
+        display: block;
+        transition: transform .4s ease;
+    }
+    .spot-visual:hover img {
+        transform: scale(1.02);
+    }
+    .spot h2 { font-size: var(--t-2); line-height: 1.05; margin-top: 14px; }
+    .spot .lede { margin-top: 22px; color: var(--muted); max-width: 48ch; line-height: 1.6; }
+    .quote {
+        margin-top: 36px; padding-left: 22px; border-left: 2px solid var(--crimson);
+        font-family: var(--display); font-size: var(--t-3); line-height: 1.35; font-style: italic;
+    }
+    .spot-facts {
+        margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+        border-top: 1px solid var(--rule); padding-top: 22px;
+    }
+    .spot-facts b { display: block; font-family: var(--display); font-size: var(--t-3); font-weight: 400; margin-bottom: 4px; }
+
+    /* ---------- Calendar ---------- */
+    .months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+    .month { background: var(--ink); padding: 28px 24px 32px; }
+    .month h3 {
+        font-family: var(--display); font-size: var(--t-3); font-weight: 400; margin-bottom: 18px;
+        display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .month h3 span { font-family: var(--sans); font-size: var(--t-5); color: var(--muted); }
+    .month .show { padding-block: 12px; border-top: 1px solid var(--rule); }
+    .month .show:first-of-type { border-top: 0; padding-top: 0; }
+    .month .show b { display: block; font-weight: 500; font-size: var(--t-5); margin-bottom: 8px; }
+    .dates { display: flex; flex-wrap: wrap; gap: 6px; }
+    .dates i {
+        font-style: normal; font-size: var(--t-5);
+        min-width: 30px; height: 30px; padding-inline: 8px;
+        display: grid; place-items: center;
+        border: 1px solid var(--rule); border-radius: 999px; color: var(--muted);
+    }
+    .dates i.prem { background: var(--crimson); border-color: var(--crimson); color: var(--cream); }
+
+    /* ---------- Pricing Table ---------- */
+    .tickets { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--t-4); }
+    th, td { text-align: left; padding: 16px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+    th { font-weight: 400; font-size: var(--t-5); color: var(--muted); }
+    td:last-child, th:last-child { text-align: right; }
+    td.band { font-family: var(--display); font-size: var(--t-3); }
+    td.band small { display: block; font-family: var(--sans); font-size: var(--t-5); color: var(--muted); margin-top: 4px; }
+    td.amt { font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--sans); font-weight: 500; }
+
+    @media (max-width: 960px) {
+        .hero-visual img { object-position: 80% center; }
+        .hero-visual::before {
+            background:
+                linear-gradient(90deg, var(--ink) 0%, rgba(12,10,11,0.94) 55%, rgba(12,10,11,0.6) 100%),
+                linear-gradient(180deg, rgba(12,10,11,0.7) 0%, transparent 18%, var(--ink) 100%);
+        }
+        .spot, .tickets { grid-template-columns: 1fr; }
+        .months { grid-template-columns: 1fr; }
+        .row { grid-template-columns: 40px minmax(0,1.6fr) minmax(0,1fr) auto 24px; }
+        .row .col:nth-of-type(2) { display: none; }
+        .row-detail { grid-template-columns: 40px 1fr; }
+    }
+    @media (max-width: 640px) {
+        .hero-visual img { object-position: 85% center; opacity: 0.35; }
+        .row { grid-template-columns: 1fr auto; gap: 12px; }
+        .row .num, .row .col { display: none; }
+        .row-detail { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
 
 {% block body %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
 
-    <!-- Hero Banner -->
-    <div class="relative rounded-3xl overflow-hidden glass-panel border border-slate-800 p-8 sm:p-12 lg:p-16 text-center">
-        <div class="absolute inset-0 bg-gradient-to-r from-gold-500/10 via-transparent to-gold-500/5 pointer-events-none"></div>
-        <div class="relative z-10 max-w-3xl mx-auto space-y-4">
-            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-semibold tracking-widest uppercase">
-                <span>✦</span> Billetterie Officielle & Expérience 3D Interactive <span>✦</span>
-            </div>
-            <h1 class="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                Saison 2026-2027<br>
-                <span class="gold-gradient-text">Les Grands Spectacles</span>
-            </h1>
-            <p class="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
-                Théâtre Royal de la Ville • 400 Places d'Exception.<br class="hidden sm:inline">
-                Explorez la salle en 3D immersive et choisissez votre siège en temps réel.
-            </p>
+<!-- ===== The Ravensgate Fold ===== -->
+<div class="fold">
+    <section class="hero" id="top">
+        <div class="hero-visual" aria-hidden="true">
+            <img src="/images/hero-auditorium.jpg" alt="" loading="eager" decoding="async">
         </div>
-    </div>
 
-    <!-- Category Filter Pills -->
-    <div class="flex flex-wrap items-center justify-center gap-3">
-        <button type="button" onclick="filterCategory('ALL')" class="category-pill active px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition border border-gold-500 bg-gold-500 text-theater-950 shadow-lg shadow-gold-500/20" data-cat="ALL">
-            Tous les spectacles
-        </button>
-        <button type="button" onclick="filterCategory('CONCERT')" class="category-pill px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition border border-slate-700 bg-theater-900/80 text-slate-300 hover:border-gold-500/50 hover:text-white" data-cat="CONCERT">
-            🎵 Concerts (Fosse Debout)
-        </button>
-        <button type="button" onclick="filterCategory('THEATRE')" class="category-pill px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition border border-slate-700 bg-theater-900/80 text-slate-300 hover:border-gold-500/50 hover:text-white" data-cat="THEATRE">
-            🎭 Pièces de Théâtre
-        </button>
-        <button type="button" onclick="filterCategory('CONFERENCE')" class="category-pill px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition border border-slate-700 bg-theater-900/80 text-slate-300 hover:border-gold-500/50 hover:text-white" data-cat="CONFERENCE">
-            🎙️ Conférences & Débats
-        </button>
-    </div>
-
-    <!-- Event Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="events-grid">
-        {% for item in eventsWithStats %}
-            {% set event = item.entity %}
-            {% set typeName = event.eventType ? event.eventType.name : 'AUTRE' %}
-            <div class="event-card group relative rounded-2xl glass-panel hover:glass-panel-gold border border-slate-800 hover:border-gold-500/50 transition-all duration-300 flex flex-col justify-between overflow-hidden p-6 hover:-translate-y-1 hover:shadow-2xl hover:shadow-gold-500/10" data-category="{{ typeName }}">
-                
-                <!-- Category Badge & Date -->
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between gap-2">
-                        {% if typeName == 'CONCERT' %}
-                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-purple-950/80 text-purple-300 border border-purple-800/60 flex items-center gap-1.5">
-                                <span>🎵</span> Concert
-                            </span>
-                        {% elseif typeName == 'THEATRE' %}
-                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-950/80 text-amber-300 border border-amber-800/60 flex items-center gap-1.5">
-                                <span>🎭</span> Théâtre
-                            </span>
-                        {% else %}
-                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-sky-950/80 text-sky-300 border border-sky-800/60 flex items-center gap-1.5">
-                                <span>🎙️</span> Conférence
-                            </span>
-                        {% endif %}
-
-                        <span class="text-xs font-mono text-slate-400">
-                            {{ event.startsAt ? event.startsAt|date('d/m/Y') : '' }}
-                        </span>
-                    </div>
-
-                    <!-- Title & Description -->
-                    <div>
-                        <h2 class="font-serif text-2xl font-bold text-white group-hover:text-gold-400 transition-colors line-clamp-1">
-                            {{ event.title }}
-                        </h2>
-                        <div class="text-xs text-gold-400/90 mt-1 flex items-center gap-1.5 font-medium">
-                            <span>🕒</span>
-                            <span>{{ event.startsAt ? event.startsAt|date('d F Y à H:i') : '' }}</span>
-                        </div>
-                        <p class="text-slate-400 text-sm mt-3 line-clamp-3 leading-relaxed">
-                            {{ event.description }}
-                        </p>
-                    </div>
+        <div class="wrap">
+            <div>
+                <p class="dateline meta">
+                    <span class="dot"></span>
+                    <strong>Saison 2026—2027</strong> &nbsp;·&nbsp; Scène Royale de 400 Places
+                </p>
+                <h1 class="display">
+                    Quatre spectacles. Quarante soirées. Une maison, <em>de velours et d'or.</em>
+                </h1>
+                <p class="hero-sub">
+                    De la transe acoustique des Maâlems au grand répertoire classique de Molière. 
+                    <strong>Places dès 100 MAD</strong>, réservables en temps réel sur le plan 3D de la salle.
+                </p>
+                <div class="hero-actions">
+                    <a class="btn btn-solid" href="#programme">Voir le programme</a>
+                    <a class="btn btn-ghost" href="/events/1">Explorer la salle 3D</a>
                 </div>
 
-                <!-- Footer Stats & CTA -->
-                <div class="mt-6 pt-5 border-t border-slate-800/80 space-y-4">
-                    <!-- Occupancy Bar -->
-                    <div class="space-y-1.5">
-                        <div class="flex items-center justify-between text-xs text-slate-400">
-                            <span>Taux de remplissage</span>
-                            <span class="font-semibold text-slate-200">{{ item.soldCount }}/400 places ({{ item.occupancyPercent }}%)</span>
-                        </div>
-                        <div class="w-full h-2 rounded-full bg-theater-800 overflow-hidden">
-                            <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 transition-all duration-500" style="width: {{ item.occupancyPercent }}%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Price & CTA Button -->
-                    <div class="flex items-center justify-between pt-1">
-                        <div>
-                            <div class="text-[10px] uppercase tracking-wider text-slate-400">Tarif</div>
-                            <div class="font-semibold text-gold-400 text-base">
-                                Dès {{ item.startingPriceMad }} MAD
-                            </div>
-                        </div>
-
-                        <a href="/events/{{ event.id }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-theater-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 group-hover:shadow-gold-500/40 transition">
-                            <span>Plan 3D</span>
-                            <span>→</span>
-                        </a>
-                    </div>
+                <!-- Architectural Specification Strip -->
+                <div style="display:flex;align-items:center;gap:24px;margin-top:48px;padding-top:24px;border-top:1px solid var(--rule);font-size:var(--t-5);color:var(--muted);flex-wrap:wrap;">
+                    <div><strong style="color:var(--cream);font-weight:500;">400</strong> places assises & fosse</div>
+                    <span style="color:var(--rule);">·</span>
+                    <div><strong style="color:var(--cream);font-weight:500;">5</strong> zones acoustiques</div>
+                    <span style="color:var(--rule);">·</span>
+                    <div><strong style="color:var(--cream);font-weight:500;">Temps Réel</strong> réservation numérotée</div>
                 </div>
             </div>
-        {% else %}
-            <div class="col-span-3 text-center py-16 glass-panel rounded-2xl border border-slate-800">
-                <span class="text-4xl">🎭</span>
-                <p class="text-slate-400 mt-2">Aucun spectacle programmé pour le moment.</p>
-            </div>
-        {% endfor %}
+        </div>
+    </section>
+</div>
+
+<!-- ===== Infinite Marquee Strip ===== -->
+<div class="strip" aria-hidden="true">
+    <div class="strip-track">
+        <span><b>Ouverture de saison</b> Soirée Gnawa Fusion, Mercredi 25 Novembre</span>
+        <span><b>Grand Classique</b> Le Malade Imaginaire, Mercredi 9 Décembre</span>
+        <span><b>Symposium</b> Tech Day : IA & Architectures Distribuées, 21 Décembre</span>
+        <span><b>400 Places</b> Orchestre, Loges Privées, Balcon & Fosse</span>
+        <span><b>Ouverture de saison</b> Soirée Gnawa Fusion, Mercredi 25 Novembre</span>
+        <span><b>Grand Classique</b> Le Malade Imaginaire, Mercredi 9 Décembre</span>
+        <span><b>Symposium</b> Tech Day : IA & Architectures Distribuées, 21 Décembre</span>
+        <span><b>400 Places</b> Orchestre, Loges Privées, Balcon & Fosse</span>
     </div>
 </div>
+
+<!-- ===== Programme-led Section ===== -->
+<section id="programme">
+    <div class="wrap">
+        <div class="section-head">
+            <h2 class="display">Le programme</h2>
+            <p class="meta">Sélectionnez une production pour consulter la distribution et réserver</p>
+        </div>
+
+        <ol class="programme">
+            {% for item in eventsWithStats %}
+                {% set event = item.entity %}
+                {% set typeName = event.eventType ? event.eventType.name : 'AUTRE' %}
+                {% set loopIndex = loop.index < 10 ? '0' ~ loop.index : loop.index %}
+                
+                <li>
+                    <button class="row" type="button" onclick="toggleRow('row-{{ event.id }}')" aria-expanded="false" id="btn-row-{{ event.id }}">
+                        <span class="num">{{ loopIndex }}</span>
+                        <span class="title">
+                            {{ event.title }}
+                            <small>
+                                {% if typeName == 'CONCERT' %}Musique & Fusion Acoustique · Fosse Debout
+                                {% elseif typeName == 'THEATRE' %}Comédie classique · 100% Places Assises
+                                {% else %}Symposium & Débats d'Ingénierie
+                                {% endif %}
+                            </small>
+                        </span>
+                        <span class="col">
+                            <b>{{ event.startsAt ? event.startsAt|date('d F Y à H:i') : '' }}</b>
+                            Salle Principale · Durée estimée 2h15
+                        </span>
+                        <span class="col">
+                            <b>{{ typeName == 'CONCERT' ? 'Concert d\'ouverture' : (typeName == 'THEATRE' ? 'Mise en scène classique' : 'Conférence Plénière') }}</b>
+                            {{ event.status.value == 'CANCELLED' ? 'Représentation annulée' : 'En vente officielle' }}
+                        </span>
+                        <span class="price">
+                            {% if event.status.value == 'CANCELLED' %}
+                                <span style="color:var(--muted)">Annulé</span>
+                            {% else %}
+                                Dès {{ item.startingPriceMad }} MAD
+                            {% endif %}
+                        </span>
+                        <span class="chev" aria-hidden="true">+</span>
+                    </button>
+
+                    <div class="row-detail" id="row-{{ event.id }}">
+                        <span></span>
+                        <div>
+                            <span class="tag">
+                                {{ event.startsAt ? event.startsAt|date('l d F Y') : '' }}
+                            </span>
+                            <p class="synopsis">{{ event.description }}</p>
+                            <div style="margin-top:20px;">
+                                {% if event.status.value == 'SCHEDULED' %}
+                                <a href="/events/{{ event.id }}" class="btn btn-solid" style="height:40px;padding-inline:20px;">
+                                    Choisir mes places sur le plan 3D →
+                                </a>
+                                {% else %}
+                                <span class="meta">Cette représentation a été annulée.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="credits">
+                            <div><span>Direction</span><b>Maâlem Hassan B.</b></div>
+                            <div><span>Scénographie</span><b>Atelier du Théâtre</b></div>
+                            <div><span>Salle</span><b>400 Places</b></div>
+                            <div><span>Configuration</span><b>{{ typeName == 'CONCERT' ? 'Fosse debout + Gradins' : 'Tout assis' }}</b></div>
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+</section>
+
+<!-- ===== Architecture & Acoustics (The 400-seat Hall) ===== -->
+<section id="architecture">
+    <div class="wrap">
+        <div class="spot">
+            <div class="spot-visual">
+                <img src="/images/hall-cutaway.jpg" alt="Écorché architectural de la salle de 400 places" loading="lazy">
+            </div>
+
+            <div>
+                <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;">Architecture & Scénographie</p>
+                <h2 class="display">La Salle & L'Acoustique</h2>
+                <p class="lede">
+                    Conçue selon les canons de l'acoustique théâtrale à l'italienne, la salle déploie 400 places réparties sur 5 zones étagées. Sa géométrie en fer à cheval favorise une résonance naturelle où chaque nuance vocale et instrumentale parvient intacte jusqu'au dernier rang.
+                </p>
+                <div class="quote">
+                    « Une scène modulable où l'avant-scène s'efface en fosse pour les concerts, ou s'habille de fauteuils pour le répertoire classique. »
+                </div>
+
+                <div class="spot-facts">
+                    <div>
+                        <b>400</b>
+                        <span class="meta">Places totales</span>
+                    </div>
+                    <div>
+                        <b>5</b>
+                        <span class="meta">Zones acoustiques</span>
+                    </div>
+                    <div>
+                        <b>100%</b>
+                        <span class="meta">Acoustique naturelle</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== Calendar Grid ===== -->
+<section id="calendrier">
+    <div class="wrap">
+        <div class="section-head">
+            <h2 class="display">Le calendrier</h2>
+            <p class="meta">Représentations de l'hiver 2026—2027</p>
+        </div>
+
+        <div class="months">
+            <div class="month">
+                <h3>Novembre <span>2026</span></h3>
+                <div class="show">
+                    <b>Soirée Gnawa Fusion</b>
+                    <div class="dates">
+                        <i class="prem" title="Soirée d'ouverture">25</i>
+                        <i>26</i>
+                        <i>27</i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="month">
+                <h3>Décembre <span>2026</span></h3>
+                <div class="show">
+                    <b>Le Malade Imaginaire</b>
+                    <div class="dates">
+                        <i class="prem" title="Première">09</i>
+                        <i>10</i>
+                        <i>11</i>
+                        <i>12</i>
+                    </div>
+                </div>
+                <div class="show">
+                    <b>Tech Day : IA & Systèmes</b>
+                    <div class="dates">
+                        <i class="prem" title="Journée plénière">21</i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="month">
+                <h3>Janvier <span>2027</span></h3>
+                <div class="show">
+                    <b>Reprise du Répertoire</b>
+                    <div class="dates">
+                        <i>14</i>
+                        <i>15</i>
+                        <i>21</i>
+                        <i>22</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== Tickets & Seating Rates ===== -->
+<section id="tarifs">
+    <div class="wrap">
+        <div class="tickets">
+            <div>
+                <h2 class="display" style="font-size:var(--t-2);margin-bottom:18px;">
+                    Grille des tarifs
+                </h2>
+                <p class="meta" style="line-height:1.6;max-width:44ch;">
+                    Chaque zone de la salle offre une acoustique et une perspective soignées. Les tarifs sont calculés à partir du prix de base du spectacle selon l'emplacement choisi.
+                </p>
+                <div style="margin-top:32px;">
+                    <a href="/events/1" class="arrow-link">
+                        Voir le plan 3D de la salle →
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Zone</th>
+                            <th>Capacité</th>
+                            <th>Orientation</th>
+                            <th>Tarif indicatif</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="band">Loges Privées<small>Flancs gauche et droit</small></td>
+                            <td>60 places</td>
+                            <td>Surélevée (+100%)</td>
+                            <td class="amt">300 MAD</td>
+                        </tr>
+                        <tr>
+                            <td class="band">Orchestre Prestige<small>Parterre central incurvé</small></td>
+                            <td>160 places</td>
+                            <td>Centrale (+50%)</td>
+                            <td class="amt">225 MAD</td>
+                        </tr>
+                        <tr>
+                            <td class="band">Avant-Scène<small>Fosse debout (Concert) / Assis (Théâtre)</small></td>
+                            <td>80 places</td>
+                            <td>Scène (+20%)</td>
+                            <td class="amt">180 MAD</td>
+                        </tr>
+                        <tr>
+                            <td class="band">Balcon & Galerie<small>Vue plongeante en gradins</small></td>
+                            <td>100 places</td>
+                            <td>Panoramique (+0%)</td>
+                            <td class="amt">150 MAD</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
 {% endblock %}
 
 {% block javascripts %}
 <script>
-    function filterCategory(category) {
-        const pills = document.querySelectorAll('.category-pill');
-        pills.forEach(p => {
-            if (p.getAttribute('data-cat') === category) {
-                p.classList.remove('bg-theater-900/80', 'text-slate-300', 'border-slate-700');
-                p.classList.add('bg-gold-500', 'text-theater-950', 'border-gold-500', 'shadow-lg', 'shadow-gold-500/20');
-            } else {
-                p.classList.remove('bg-gold-500', 'text-theater-950', 'border-gold-500', 'shadow-lg', 'shadow-gold-500/20');
-                p.classList.add('bg-theater-900/80', 'text-slate-300', 'border-slate-700');
-            }
-        });
+    function toggleRow(rowId) {
+        const detail = document.getElementById(rowId);
+        const btn = document.getElementById('btn-' + rowId);
+        if (!detail || !btn) return;
 
-        const cards = document.querySelectorAll('.event-card');
-        cards.forEach(card => {
-            if (category === 'ALL' || card.getAttribute('data-category') === category) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
+        const isOpen = detail.classList.contains('open');
+        if (isOpen) {
+            detail.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        } else {
+            detail.classList.add('open');
+            btn.setAttribute('aria-expanded', 'true');
+        }
     }
 </script>
 {% endblock %}
