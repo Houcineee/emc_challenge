@@ -147,6 +147,51 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertSame('ETUDIANT20', $data['code']);
     }
 
+    public function testSeatEndpointsRejectInvalidAndDuplicateIds(): void
+    {
+        $client = static::createClient();
+        $this->loginAs($client, 'CLIENT');
+
+        $event = static::getContainer()
+            ->get(EntityManagerInterface::class)
+            ->getRepository(Event::class)
+            ->findOneBy(['title' => 'Soirée Gnawa Fusion']);
+        $this->assertNotNull($event);
+
+        $client->request(
+            'POST',
+            sprintf('/api/events/%d/hold', $event->getId()),
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['seatIds' => [1, 1]], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseStatusCodeSame(400);
+
+        $client->request(
+            'POST',
+            sprintf('/api/events/%d/hold', $event->getId()),
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['seatIds' => [999999]], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseStatusCodeSame(400);
+
+        $client->request(
+            'POST',
+            '/api/checkout',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $event->getId(),
+                'seatIds' => [1, 1],
+            ], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseStatusCodeSame(400);
+    }
+
     public function testQuickLoginAndFullPurchaseJourney(): void
     {
         $client = static::createClient();

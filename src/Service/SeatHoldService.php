@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\EventStatus;
 use App\Enum\TicketStatus;
 use App\Enum\UserRole;
+use App\Exception\DomainException;
 use App\Exception\EventNotBookableException;
 use App\Exception\MaxHoldsExceededException;
 use App\Exception\SeatAlreadyHeldException;
@@ -36,6 +37,22 @@ class SeatHoldService
 
         if (empty($seatIds)) {
             return;
+        }
+
+        if (count($seatIds) !== count(array_unique($seatIds)) || min($seatIds) <= 0) {
+            throw new DomainException('La liste des sièges contient des identifiants invalides ou dupliqués.');
+        }
+
+        $existingSeatCount = (int) $this->em->createQueryBuilder()
+            ->select('COUNT(s.id)')
+            ->from(\App\Entity\Seat::class, 's')
+            ->where('s.id IN (:seatIds)')
+            ->setParameter('seatIds', $seatIds)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        if ($existingSeatCount !== count($seatIds)) {
+            throw new DomainException('Un ou plusieurs sièges demandés n’existent pas.');
         }
 
         $currentHolds = $this->getUserActiveHolds($event, $user);

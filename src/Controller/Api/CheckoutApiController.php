@@ -118,6 +118,11 @@ class CheckoutApiController extends AbstractController
 
         $eventId = (int) $data['eventId'];
         $seatIds = array_map('intval', $data['seatIds']);
+        if ($eventId <= 0 || count($seatIds) !== count(array_unique($seatIds)) || (empty($seatIds) ? true : min($seatIds) <= 0)) {
+            return new JsonResponse([
+                'error' => 'Les identifiants de l’événement et des sièges sont invalides ou dupliqués.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
         $couponCode = isset($data['couponCode']) && trim((string) $data['couponCode']) !== ''
             ? strtoupper(trim((string) $data['couponCode']))
             : null;

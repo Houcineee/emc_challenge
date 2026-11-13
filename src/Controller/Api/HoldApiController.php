@@ -7,6 +7,7 @@ namespace App\Controller\Api;
 use App\Entity\Event;
 use App\Entity\Seat;
 use App\Entity\User;
+use App\Exception\DomainException;
 use App\Exception\EventNotBookableException;
 use App\Exception\MaxHoldsExceededException;
 use App\Exception\SeatAlreadyHeldException;
@@ -50,6 +51,11 @@ class HoldApiController extends AbstractController
         }
 
         $seatIds = array_map('intval', $data['seatIds']);
+        if (count($seatIds) !== count(array_unique($seatIds)) || min($seatIds) <= 0) {
+            return new JsonResponse([
+                'error' => 'La liste des sièges contient des identifiants invalides ou dupliqués.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         try {
             $this->seatHoldService->holdSeats($event, $seatIds, $user);
@@ -60,6 +66,8 @@ class HoldApiController extends AbstractController
         } catch (MaxHoldsExceededException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (EventNotBookableException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (DomainException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
 
