@@ -160,10 +160,16 @@ class AdminApiController extends AbstractController
         $validFromStr = $data['validFrom'] ?? null;
         $validUntilStr = $data['validUntil'] ?? null;
 
-        $validFrom = $validFromStr ? new \DateTimeImmutable((string) $validFromStr) : new \DateTimeImmutable('-1 hour');
-        $validUntil = $validUntilStr
-            ? new \DateTimeImmutable((string) $validUntilStr)
-            : ($event->getStartsAt() ?? new \DateTimeImmutable('+30 days'));
+        try {
+            $validFrom = $validFromStr ? new \DateTimeImmutable((string) $validFromStr) : new \DateTimeImmutable('-1 hour');
+            $validUntil = $validUntilStr
+                ? new \DateTimeImmutable((string) $validUntilStr)
+                : ($event->getStartsAt() ?? new \DateTimeImmutable('+30 days'));
+        } catch (\Exception) {
+            return new JsonResponse([
+                'error' => 'Format de date de validité invalide (ISO 8601 requis).',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         $coupon = new Coupon();
         $coupon->setEvent($event);

@@ -355,6 +355,22 @@ class ApiEndpointsTest extends WebTestCase
             ])
         );
         $this->assertResponseStatusCodeSame(403);
+
+        $this->loginAs($client, 'ADMIN');
+        $client->request(
+            'POST',
+            '/api/admin/coupons',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $eventId,
+                'code' => 'BADDATE',
+                'discountPercent' => 20,
+                'validFrom' => 'not-a-date',
+            ], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseStatusCodeSame(400);
     }
 
     public function testClientCanViewTheirTickets(): void
