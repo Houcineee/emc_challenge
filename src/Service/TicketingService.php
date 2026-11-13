@@ -52,7 +52,7 @@ class TicketingService
                     ->where('c.event = :event')
                     ->andWhere('c.code = :code')
                     ->setParameter('event', $event)
-                    ->setParameter('code', trim($couponCode))
+                    ->setParameter('code', strtoupper(trim($couponCode)))
                     ->getQuery()
                     ->setLockMode(LockMode::PESSIMISTIC_WRITE)
                     ->getOneOrNullResult();

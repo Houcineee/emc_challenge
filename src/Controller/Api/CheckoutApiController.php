@@ -45,7 +45,7 @@ class CheckoutApiController extends AbstractController
         }
 
         $eventId = (int) $data['eventId'];
-        $code = trim((string) $data['code']);
+        $code = strtoupper(trim((string) $data['code']));
 
         $event = $this->em->getRepository(Event::class)->find($eventId);
         if ($event === null) {
@@ -119,7 +119,7 @@ class CheckoutApiController extends AbstractController
         $eventId = (int) $data['eventId'];
         $seatIds = array_map('intval', $data['seatIds']);
         $couponCode = isset($data['couponCode']) && trim((string) $data['couponCode']) !== ''
-            ? trim((string) $data['couponCode'])
+            ? strtoupper(trim((string) $data['couponCode']))
             : null;
 
         // Idempotency Key handling (Header 'Idempotency-Key' or body field 'idempotencyKey')

@@ -119,6 +119,34 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertArrayHasKey('status', $seat);
     }
 
+    public function testCouponValidationAcceptsLowercaseInput(): void
+    {
+        $client = static::createClient();
+        $event = static::getContainer()
+            ->get(EntityManagerInterface::class)
+            ->getRepository(Event::class)
+            ->findOneBy(['title' => 'Soirée Gnawa Fusion']);
+
+        $this->assertNotNull($event);
+
+        $client->request(
+            'POST',
+            '/api/coupons/validate',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'eventId' => $event->getId(),
+                'code' => 'etudiant20',
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertTrue($data['valid']);
+        $this->assertSame('ETUDIANT20', $data['code']);
+    }
+
     public function testQuickLoginAndFullPurchaseJourney(): void
     {
         $client = static::createClient();
