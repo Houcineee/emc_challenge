@@ -495,13 +495,13 @@
             });
             const data = await res.json();
             if (res.ok) {
-                alert('Spectacle créé.');
-                window.location.reload();
+                showAppToast('Le spectacle a été ajouté au programme.', 'success', 'Spectacle créé');
+                setTimeout(() => window.location.reload(), 850);
             } else {
-                alert(data.error || 'Erreur lors de la création.');
+                showAppToast(data.error || 'Erreur lors de la création.');
             }
         } catch (err) {
-            alert('Erreur réseau.');
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
         }
     }
 
@@ -523,18 +523,25 @@
             });
             const data = await res.json();
             if (res.ok) {
-                alert('Coupon créé.');
-                window.location.reload();
+                showAppToast('Le coupon est maintenant disponible pour la billetterie.', 'success', 'Coupon créé');
+                setTimeout(() => window.location.reload(), 850);
             } else {
-                alert(data.error || 'Erreur lors de la création.');
+                showAppToast(data.error || 'Erreur lors de la création.');
             }
         } catch (err) {
-            alert('Erreur réseau.');
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
         }
     }
 
     async function cancelEvent(eventId, eventTitle) {
-        if (!confirm(`Confirmer l'annulation de "${eventTitle}" ? Les billets vendus passeront en statut remboursé.`)) {
+        const confirmed = await showAppConfirm(
+            `Les billets vendus passeront automatiquement en statut remboursé.`,
+            {
+                title: `Annuler « ${eventTitle} » ?`,
+                confirmLabel: 'Annuler le spectacle'
+            }
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -542,13 +549,13 @@
             const res = await fetch(`/api/admin/events/${eventId}/cancel`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
-                alert(`Spectacle annulé. ${data.refundedTicketsCount} billets passés en remboursement.`);
-                window.location.reload();
+                showAppToast(`${data.refundedTicketsCount} billet(s) passé(s) en remboursement.`, 'success', 'Spectacle annulé');
+                setTimeout(() => window.location.reload(), 850);
             } else {
-                alert(data.error || 'Erreur lors de l\'annulation.');
+                showAppToast(data.error || 'Erreur lors de l\'annulation.');
             }
         } catch (err) {
-            alert('Erreur réseau.');
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
         }
     }
 </script>

@@ -214,7 +214,7 @@
                     <strong>Saison 2026—2027</strong> &nbsp;·&nbsp; Scène Royale de 400 Places
                 </p>
                 <h1 class="display">
-                    Quatre spectacles. Quarante soirées. Une maison, <em>de velours et d'or.</em>
+                    Une maison, <em>de velours et d'or.</em>
                 </h1>
                 <p class="hero-sub">
                     De la transe acoustique des Maâlems au grand répertoire classique de Molière. 
@@ -222,7 +222,7 @@
                 </p>
                 <div class="hero-actions">
                     <a class="btn btn-solid" href="#programme">Voir le programme</a>
-                    <a class="btn btn-ghost" href="/events/1">Explorer la salle 3D</a>
+                    <a class="btn btn-ghost" href="/salle-3d">Explorer la salle 3D</a>
                 </div>
 
                 <!-- Architectural Specification Strip -->
@@ -368,53 +368,27 @@
     <div class="wrap">
         <div class="section-head">
             <h2 class="display">Le calendrier</h2>
-            <p class="meta">Représentations de l'hiver 2026—2027</p>
+            <p class="meta">Toutes les représentations actuellement programmées</p>
         </div>
 
         <div class="months">
-            <div class="month">
-                <h3>Novembre <span>2026</span></h3>
-                <div class="show">
-                    <b>Soirée Gnawa Fusion</b>
-                    <div class="dates">
-                        <i class="prem" title="Soirée d'ouverture">25</i>
-                        <i>26</i>
-                        <i>27</i>
-                    </div>
+            {% for month in calendarMonths %}
+                <div class="month">
+                    <h3>{{ month.label }} <span>{{ month.year }}</span></h3>
+                    {% for item in month.events %}
+                        <div class="show">
+                            <a href="/events/{{ item.entity.id }}"><b>{{ item.entity.title }}</b></a>
+                            <div class="dates">
+                                <i class="prem" title="Représentation à {{ item.time }}">{{ item.day }}</i>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
-            </div>
-
-            <div class="month">
-                <h3>Décembre <span>2026</span></h3>
-                <div class="show">
-                    <b>Le Malade Imaginaire</b>
-                    <div class="dates">
-                        <i class="prem" title="Première">09</i>
-                        <i>10</i>
-                        <i>11</i>
-                        <i>12</i>
-                    </div>
+            {% else %}
+                <div class="month">
+                    <p class="meta">Aucune représentation programmée pour le moment.</p>
                 </div>
-                <div class="show">
-                    <b>Tech Day : IA & Systèmes</b>
-                    <div class="dates">
-                        <i class="prem" title="Journée plénière">21</i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="month">
-                <h3>Janvier <span>2027</span></h3>
-                <div class="show">
-                    <b>Reprise du Répertoire</b>
-                    <div class="dates">
-                        <i>14</i>
-                        <i>15</i>
-                        <i>21</i>
-                        <i>22</i>
-                    </div>
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
@@ -431,7 +405,7 @@
                     Chaque zone de la salle offre une acoustique et une perspective soignées. Les tarifs sont calculés à partir du prix de base du spectacle selon l'emplacement choisi.
                 </p>
                 <div style="margin-top:32px;">
-                    <a href="/events/1" class="arrow-link">
+                    <a href="/salle-3d" class="arrow-link">
                         Voir le plan 3D de la salle →
                     </a>
                 </div>

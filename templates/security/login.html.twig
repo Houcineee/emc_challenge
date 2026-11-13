@@ -85,7 +85,7 @@
                 window.location.href = redirectUrl;
             } else {
                 const data = await res.json();
-                alert(data.error || 'Erreur lors de la connexion.');
+                showAppToast(data.error || 'Erreur lors de la connexion.');
             }
         } catch (e) {
             console.error(e);
@@ -111,12 +111,12 @@
             if (res.ok) {
                 window.location.href = '/';
             } else {
-                alert(data.error || 'Identifiants invalides.');
+                showAppToast(data.error || 'Identifiants invalides.');
                 btn.disabled = false;
                 btn.innerText = 'Se connecter';
             }
         } catch (err) {
-            alert('Erreur réseau.');
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
             btn.disabled = false;
             btn.innerText = 'Se connecter';
         }

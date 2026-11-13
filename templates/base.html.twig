@@ -114,6 +114,114 @@
         .btn-ghost { border: 1px solid var(--rule); color: var(--cream); }
         .btn-ghost:hover { border-color: var(--cream); }
 
+        .app-toast-region {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 300;
+            display: grid;
+            gap: 10px;
+            width: min(390px, calc(100vw - 32px));
+            pointer-events: none;
+        }
+
+        .app-toast {
+            display: grid;
+            grid-template-columns: 3px 1fr auto;
+            gap: 14px;
+            align-items: start;
+            padding: 16px 16px 16px 0;
+            background: rgba(23, 19, 22, 0.96);
+            border: 1px solid var(--rule);
+            border-radius: 6px;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+            pointer-events: auto;
+            animation: app-toast-in .24s ease-out both;
+        }
+
+        .app-toast::before {
+            content: "";
+            width: 3px;
+            height: 100%;
+            min-height: 28px;
+            background: var(--crimson);
+        }
+
+        .app-toast.success::before { background: #d4af37; }
+        .app-toast-title {
+            display: block;
+            margin-bottom: 2px;
+            color: var(--cream);
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .app-toast-message {
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+        .app-toast-close {
+            color: var(--muted);
+            font-size: 1.15rem;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .app-toast-close:hover { color: var(--cream); }
+
+        .app-confirm-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 290;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(12, 10, 11, 0.78);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .app-confirm-backdrop.hidden { display: none; }
+        .app-confirm-card {
+            width: min(460px, 100%);
+            padding: 28px;
+            background: var(--ink-2);
+            border: 1px solid var(--rule);
+            border-radius: 8px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+            animation: app-confirm-in .2s ease-out both;
+        }
+        .app-confirm-card h2 {
+            margin-bottom: 8px;
+            font-family: var(--display);
+            font-size: var(--t-3);
+            font-weight: 400;
+            line-height: 1.15;
+        }
+        .app-confirm-card p {
+            color: var(--muted);
+            font-size: 0.86rem;
+            line-height: 1.55;
+        }
+        .app-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 24px;
+        }
+        .app-confirm-actions .danger {
+            background: var(--crimson);
+            color: var(--cream);
+        }
+        .app-confirm-actions .danger:hover { background: var(--crimson-hover); }
+
+        @keyframes app-toast-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes app-confirm-in {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         /* Navigation */
         .nav {
             border-bottom: 1px solid var(--rule);
@@ -342,6 +450,81 @@
             </div>
         </div>
     </footer>
+
+    <div id="app-toast-region" class="app-toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="app-confirm-backdrop" class="app-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="app-confirm-title">
+        <div class="app-confirm-card">
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Confirmation requise</p>
+            <h2 id="app-confirm-title">Confirmer cette action</h2>
+            <p id="app-confirm-message"></p>
+            <div class="app-confirm-actions">
+                <button type="button" class="btn btn-ghost" id="app-confirm-cancel">Annuler</button>
+                <button type="button" class="btn danger" id="app-confirm-submit">Confirmer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAppToast(message, type = 'error', title = null) {
+            const region = document.getElementById('app-toast-region');
+            if (!region) return;
+
+            const toast = document.createElement('div');
+            toast.className = `app-toast ${type}`;
+            const heading = title || (type === 'success' ? 'Opération réussie' : 'Un problème est survenu');
+            toast.innerHTML = `
+                <div>
+                    <strong class="app-toast-title">${heading}</strong>
+                    <span class="app-toast-message"></span>
+                </div>
+                <button type="button" class="app-toast-close" aria-label="Fermer">×</button>
+            `;
+            toast.querySelector('.app-toast-message').textContent = message;
+            const close = () => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 180);
+            };
+            toast.querySelector('.app-toast-close').addEventListener('click', close);
+            region.appendChild(toast);
+            setTimeout(close, type === 'success' ? 3200 : 5200);
+        }
+
+        function showAppConfirm(message, options = {}) {
+            const backdrop = document.getElementById('app-confirm-backdrop');
+            const title = document.getElementById('app-confirm-title');
+            const messageEl = document.getElementById('app-confirm-message');
+            const cancel = document.getElementById('app-confirm-cancel');
+            const submit = document.getElementById('app-confirm-submit');
+            if (!backdrop || !title || !messageEl || !cancel || !submit) return Promise.resolve(false);
+
+            title.textContent = options.title || 'Confirmer cette action';
+            messageEl.textContent = message;
+            submit.textContent = options.confirmLabel || 'Confirmer';
+            submit.classList.toggle('danger', options.danger !== false);
+            backdrop.classList.remove('hidden');
+
+            return new Promise(resolve => {
+                const finish = (result) => {
+                    backdrop.classList.add('hidden');
+                    cancel.removeEventListener('click', onCancel);
+                    submit.removeEventListener('click', onSubmit);
+                    backdrop.removeEventListener('click', onBackdrop);
+                    resolve(result);
+                };
+                const onCancel = () => finish(false);
+                const onSubmit = () => finish(true);
+                const onBackdrop = (event) => {
+                    if (event.target === backdrop) finish(false);
+                };
+                cancel.addEventListener('click', onCancel);
+                submit.addEventListener('click', onSubmit);
+                backdrop.addEventListener('click', onBackdrop);
+                submit.focus();
+            });
+        }
+    </script>
 
     <!-- Global Cart Script -->
     <script>

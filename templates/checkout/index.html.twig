@@ -382,13 +382,13 @@
             if (res.ok) {
                 window.location.href = '/tickets/my?success=1';
             } else {
-                alert(data.error || 'Erreur lors de la confirmation.');
+                showAppToast(data.error || 'Erreur lors de la confirmation.');
                 payBtn.disabled = false;
                 spinner.classList.add('hidden');
                 label.innerText = 'Confirmer et payer →';
             }
         } catch (e) {
-            alert('Erreur réseau.');
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
             payBtn.disabled = false;
             spinner.classList.add('hidden');
             label.innerText = 'Confirmer et payer →';
