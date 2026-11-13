@@ -89,6 +89,33 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertArrayHasKey('eventType', $firstEvent);
     }
 
+    public function testProtectedEndpointsRequireAuthenticationOrRole(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/api/cart');
+        $this->assertResponseStatusCodeSame(401);
+
+        $client->request(
+            'POST',
+            '/api/checkout',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode(['eventId' => 1, 'seatIds' => [1]], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseStatusCodeSame(401);
+
+        $this->loginAs($client, 'CLIENT');
+        $client->request('GET', '/api/admin/dashboard');
+        $this->assertResponseStatusCodeSame(403);
+
+        $client->request('POST', '/api/cashier/verify-ticket', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['qrPayload' => 'EMC-1-1'], JSON_THROW_ON_ERROR));
+        $this->assertResponseStatusCodeSame(403);
+    }
+
     public function testGetEventSeatsStructureForThreeJs(): void
     {
         $client = static::createClient();
