@@ -32,7 +32,7 @@
   - `SeatHoldService` : réservations temporaires 15 min dans Redis, anti-scalping (max 6 places par client), libération proactive.
   - `TicketingService` : achat atomique transactionnel MySQL avec verrouillage pessimiste sur coupons (`FOR UPDATE`), annulation d'événement avec remboursement.
 - **Contrôleurs API REST (14 routes) :**
-  - `AuthController` : `/api/auth/login`, `/api/auth/quick-login`, `/api/auth/me`, `/api/auth/logout`.
+  - `AuthController` : `/api/auth/login`, `/api/auth/me`, `/api/auth/logout`.
   - `EventApiController` : `/api/events`, `/api/events/{id}`, `/api/events/{id}/seats` (fournit la topologie 3D des 400 places pour Three.js).
   - `HoldApiController` : `/api/events/{id}/hold`, `/api/events/{id}/hold/{seatId}`, `/api/cart`.
   - `CheckoutApiController` : `/api/coupons/validate`, `/api/checkout`.
