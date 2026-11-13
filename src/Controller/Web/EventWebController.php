@@ -64,8 +64,46 @@ class EventWebController extends AbstractController
             ];
         }
 
+        $monthNames = [
+            1 => 'Janvier',
+            2 => 'Février',
+            3 => 'Mars',
+            4 => 'Avril',
+            5 => 'Mai',
+            6 => 'Juin',
+            7 => 'Juillet',
+            8 => 'Août',
+            9 => 'Septembre',
+            10 => 'Octobre',
+            11 => 'Novembre',
+            12 => 'Décembre',
+        ];
+        $calendarMonths = [];
+        foreach ($events as $event) {
+            $startsAt = $event->getStartsAt();
+            if ($startsAt === null) {
+                continue;
+            }
+
+            $monthKey = $startsAt->format('Y-m');
+            if (!isset($calendarMonths[$monthKey])) {
+                $calendarMonths[$monthKey] = [
+                    'label' => $monthNames[(int) $startsAt->format('n')],
+                    'year' => $startsAt->format('Y'),
+                    'events' => [],
+                ];
+            }
+
+            $calendarMonths[$monthKey]['events'][] = [
+                'entity' => $event,
+                'day' => $startsAt->format('d'),
+                'time' => $startsAt->format('H:i'),
+            ];
+        }
+
         return $this->render('events/index.html.twig', [
             'eventsWithStats' => $eventsWithStats,
+            'calendarMonths' => array_values($calendarMonths),
         ]);
     }
 
@@ -116,6 +154,53 @@ class EventWebController extends AbstractController
             'zonePricing' => $zonePricing,
             'isFrontStageStanding' => $isFrontStageStanding,
             'startingPriceMad' => (int) round($event->getBasePriceCents() / 100),
+        ]);
+    }
+
+    #[Route('/salle-3d', name: 'web_venue_3d', methods: ['GET'])]
+    public function venue(): Response
+    {
+        $zones = $this->em->getRepository(Zone::class)->findBy([], ['id' => 'ASC']);
+
+        return $this->render('events/venue.html.twig', [
+            'zones' => $zones,
+        ]);
+    }
+
+    #[Route('/api/venue/seats', name: 'api_venue_seats', methods: ['GET'])]
+    public function venueSeats(): Response
+    {
+        $seats = $this->em->createQueryBuilder()
+            ->select('s', 'z')
+            ->from(Seat::class, 's')
+            ->join('s.zone', 'z')
+            ->orderBy('z.id', 'ASC')
+            ->addOrderBy('s.rowLabel', 'ASC')
+            ->addOrderBy('s.seatNumber', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $formattedSeats = [];
+        foreach ($seats as $seat) {
+            $zone = $seat->getZone();
+            $formattedSeats[] = [
+                'id' => (int) $seat->getId(),
+                'row' => $seat->getRowLabel(),
+                'number' => $seat->getSeatNumber(),
+                'zone' => [
+                    'id' => $zone->getId(),
+                    'name' => $zone->getName()?->value,
+                    'multiplier' => $zone->getPriceMultiplierPercent(),
+                ],
+                'isSeated' => true,
+                'priceCents' => 0,
+                'status' => 'AVAILABLE',
+                'holdTtl' => null,
+            ];
+        }
+
+        return $this->json([
+            'seats' => $formattedSeats,
         ]);
     }
 }

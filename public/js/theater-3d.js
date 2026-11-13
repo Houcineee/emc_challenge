@@ -15,6 +15,7 @@
     let canvas, container;
     let seatsData = [];
     const seatMeshMap = new Map(); // seatId -> Group/Mesh
+    const seatPickRoots = [];
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let hoveredSeatGroup = null;
@@ -23,6 +24,11 @@
     let isStandingFrontStage = false;
     let chandelierGroup = null;
     let cameraTween = null;
+    let heldByMePulseT = 0;
+    let countdownInterval = null;
+    let zoneBannerTimeout = null;
+    let hintDismissed = false;
+    let pointerDownPos = { x: 0, y: 0 };
 
     // --- Palette de Matériaux Théâtraux & Historiques (Zéro néon) ---
     const materials = {
@@ -114,13 +120,20 @@
 
     // --- Géométries Partagées (Optimisation mémoire & draw calls) ---
     const sharedGeos = {
-        cushion: new THREE.BoxGeometry(0.74, 0.16, 0.72),
-        backrest: new THREE.BoxGeometry(0.70, 0.76, 0.14),
-        backFrame: new THREE.BoxGeometry(0.74, 0.80, 0.04),
-        armrest: new THREE.BoxGeometry(0.10, 0.12, 0.58),
-        armCap: new THREE.CylinderGeometry(0.05, 0.05, 0.10, 8),
-        stanchion: new THREE.CylinderGeometry(0.05, 0.07, 0.36, 8),
-        flange: new THREE.CylinderGeometry(0.14, 0.14, 0.03, 12),
+        cushion: new THREE.BoxGeometry(0.72, 0.14, 0.70),
+        cushionBase: new THREE.BoxGeometry(0.74, 0.05, 0.72),
+        backrest: new THREE.BoxGeometry(0.68, 0.68, 0.12),
+        backFrame: new THREE.BoxGeometry(0.72, 0.72, 0.04),
+        backCrest: new THREE.CylinderGeometry(0.36, 0.36, 0.05, 18),
+        numberPlaque: new THREE.BoxGeometry(0.18, 0.07, 0.02),
+        armrest: new THREE.BoxGeometry(0.09, 0.10, 0.54),
+        armSupport: new THREE.BoxGeometry(0.05, 0.36, 0.06),
+        armCap: new THREE.CylinderGeometry(0.045, 0.045, 0.09, 10),
+        stanchion: new THREE.CylinderGeometry(0.04, 0.055, 0.36, 8),
+        legFoot: new THREE.BoxGeometry(0.08, 0.04, 0.58),
+        standingDisc: new THREE.CylinderGeometry(0.40, 0.40, 0.04, 20),
+        standingRim: new THREE.TorusGeometry(0.41, 0.025, 6, 28),
+        standingBadge: new THREE.CylinderGeometry(0.10, 0.10, 0.02, 8),
         crystalPrism: new THREE.OctahedronGeometry(0.16, 0),
         candleFlame: new THREE.ConeGeometry(0.06, 0.18, 8)
     };
@@ -136,11 +149,11 @@
         // 1. Scene
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0C0A0B); // var(--ink)
-        scene.fog = new THREE.FogExp2(0x0C0A0B, 0.010);
+        scene.fog = new THREE.FogExp2(0x0C0A0B, 0.006); // Lighter fog so far seats visible
 
         // 2. Camera (Preset Panoramique par défaut : vue d'ensemble sans aucune obstruction)
         const aspect = container.clientWidth / container.clientHeight;
-        camera = new THREE.PerspectiveCamera(46, aspect, 0.5, 350);
+        camera = new THREE.PerspectiveCamera(55, aspect, 0.5, 350);
         camera.position.set(0, 32, 42);
 
         // 3. Renderer
@@ -163,7 +176,7 @@
         controls.dampingFactor = 0.05;
         controls.minDistance = 10;
         controls.maxDistance = 110;
-        controls.maxPolarAngle = Math.PI / 2 - 0.03; // Ne pas traverser le plancher
+        controls.maxPolarAngle = Math.PI * 0.72; // Allow looking slightly upward from stage
         controls.target.set(0, 2, -4);
         controls.update();
 
@@ -173,22 +186,33 @@
         // 6. Architectural Room (Opéra Garnier Style sans aucune occlusion de sièges)
         buildOperaArchitecture();
 
-        // 7. Injecter le bouton "Orchestre" dans l'UI si nécessaire
-        injectOrchestraPresetButton();
-
-        // 8. Load Seats from API
+        // 7. Load Seats from API
         loadSeats();
 
         // 9. Event Listeners
         window.addEventListener('resize', onWindowResize);
+        canvas.addEventListener('pointerdown', onPointerDown);
         canvas.addEventListener('pointermove', onPointerMove);
         canvas.addEventListener('click', onCanvasClick);
 
         // 10. Animation Loop
         animate();
 
-        // 11. Polling toutes les 15s pour synchroniser les réservations
-        setInterval(loadSeatsSilent, 15000);
+        // 11. Polling + live countdown (uniquement pour les représentations avec vente)
+        if (canvas.getAttribute('data-mode') !== 'explore' && !isNaN(eventId)) {
+            setInterval(loadSeatsSilent, 15000);
+            countdownInterval = setInterval(() => {
+                document.querySelectorAll('.seat-countdown').forEach(el => {
+                    let ttl = parseInt(el.dataset.ttl, 10);
+                    if (isNaN(ttl) || ttl <= 0) return;
+                    ttl -= 1;
+                    el.dataset.ttl = ttl;
+                    const m = Math.floor(ttl / 60);
+                    const s = (ttl % 60).toString().padStart(2, '0');
+                    el.textContent = `${m}:${s}`;
+                });
+            }, 1000);
+        }
     }
 
     function setupLighting() {
@@ -237,6 +261,16 @@
         rightSpot.target.position.set(0, 1.5, -24);
         scene.add(rightSpot);
         scene.add(rightSpot.target);
+
+        // House fill: warm wash from behind proscenium into the auditorium
+        const houseFill = new THREE.PointLight(0xfff0d0, 1.4, 90, 1.2);
+        houseFill.position.set(0, 8, 10);
+        scene.add(houseFill);
+
+        // Secondary fill from high rear to catch balcony
+        const rearFill = new THREE.PointLight(0xffe8c0, 0.8, 70, 1.4);
+        rearFill.position.set(0, 20, 30);
+        scene.add(rearFill);
     }
 
     // --- Générateur de Secteur Annulaire Creux (THREE.Shape & THREE.ExtrudeGeometry) ---
@@ -396,46 +430,136 @@
     }
 
     function buildHorseshoeBalcony(parentGroup) {
-        // Balcon principal (1er étage y=6.5) et Galerie supérieure (2e étage y=10.0)
-        // Construit EXCLUSIVEMENT sous forme d'anneau creux via THREE.Shape & THREE.ExtrudeGeometry
-        // Le rayon 0 à 31.0 reste 100% libre et creux, préservant l'orchestre de toute occlusion.
+        // Deux galeries structurées autour d'un vide central : une vraie coursive
+        // habitable au premier niveau, puis une galerie supérieure plus légère.
         const balconyTiers = [
-            { yFloor: 6.5, innerR: 31.5, outerR: 38.5, angleSpan: Math.PI * 0.66, parapetH: 0.65 },
-            { yFloor: 10.0, innerR: 34.5, outerR: 39.5, angleSpan: Math.PI * 0.68, parapetH: 0.60 }
+            { yFloor: 6.25, innerR: 29.5, outerR: 39.5, angleSpan: Math.PI * 0.72, parapetH: 0.58, supportBottom: 0.9 },
+            { yFloor: 11.8, innerR: 33.5, outerR: 40.5, angleSpan: Math.PI * 0.70, parapetH: 0.52, supportBottom: 7.2 }
         ];
 
-        balconyTiers.forEach(tier => {
-            // Plancher en bois cintré (Secteur annulaire creux extrudé)
-            const floorShape = createAnnularSectorShape(tier.innerR, tier.outerR, tier.angleSpan, 0.78, 48);
-            const floorGeo = new THREE.ExtrudeGeometry(floorShape, { depth: 0.35, bevelEnabled: false });
+        balconyTiers.forEach((tier, tierIndex) => {
+            const zCenter = -11.5;
+            const zScale = 0.78;
+
+            // Dalle porteuse épaisse, avec un débord visible sous la galerie.
+            const floorShape = createAnnularSectorShape(tier.innerR, tier.outerR, tier.angleSpan, zScale, 64);
+            const floorGeo = new THREE.ExtrudeGeometry(floorShape, { depth: 0.48, bevelEnabled: false });
             const floorMesh = new THREE.Mesh(floorGeo, materials.RISER_WOOD);
             floorMesh.rotation.x = -Math.PI / 2;
-            floorMesh.position.set(0, tier.yFloor, -9);
+            floorMesh.position.set(0, tier.yFloor, zCenter);
             floorMesh.receiveShadow = true;
+            floorMesh.castShadow = true;
             parentGroup.add(floorMesh);
 
-            // Parapet frontal courbé en boiserie noyer (mince coque à innerR, ne déborde jamais vers l'intérieur)
-            const parapetShape = createAnnularSectorShape(tier.innerR - 0.20, tier.innerR, tier.angleSpan, 0.78, 48);
+            // Cinq gradins courbes sous les fauteuils du balcon principal.
+            // Chaque rangée repose ainsi sur une marche identifiable au lieu
+            // de flotter au-dessus d'une dalle continue.
+            if (tierIndex === 0) {
+                for (let rowIndex = 0; rowIndex < 5; rowIndex++) {
+                    const rowRadius = 32.2 + (rowIndex * 1.35);
+                    const rowShape = createAnnularSectorShape(rowRadius - 0.62, rowRadius + 0.62, 0.92, zScale, 48);
+                    const rowGeo = new THREE.ExtrudeGeometry(rowShape, { depth: 0.27, bevelEnabled: false });
+                    const rowMesh = new THREE.Mesh(rowGeo, materials.RISER_WOOD);
+                    rowMesh.rotation.x = -Math.PI / 2;
+                    rowMesh.position.set(0, tier.yFloor + 0.53 + (rowIndex * 0.68), zCenter);
+                    rowMesh.receiveShadow = true;
+                    parentGroup.add(rowMesh);
+
+                    const rowTrimShape = createAnnularSectorShape(rowRadius - 0.62, rowRadius + 0.62, 0.92, zScale, 48);
+                    const rowTrimGeo = new THREE.ExtrudeGeometry(rowTrimShape, { depth: 0.035, bevelEnabled: false });
+                    const rowTrim = new THREE.Mesh(rowTrimGeo, materials.BALCONY_PANEL);
+                    rowTrim.rotation.x = -Math.PI / 2;
+                    rowTrim.position.set(0, tier.yFloor + 0.81 + (rowIndex * 0.68), zCenter);
+                    parentGroup.add(rowTrim);
+                }
+            }
+
+            // Bandeau extérieur : la tranche de la dalle donne de la profondeur
+            // et rattache visuellement le balcon à sa structure.
+            const outerBandShape = createAnnularSectorShape(tier.outerR - 0.28, tier.outerR + 0.10, tier.angleSpan, zScale, 64);
+            const outerBandGeo = new THREE.ExtrudeGeometry(outerBandShape, { depth: 0.78, bevelEnabled: false });
+            const outerBand = new THREE.Mesh(outerBandGeo, materials.BALCONY_PANEL);
+            outerBand.rotation.x = -Math.PI / 2;
+            outerBand.position.set(0, tier.yFloor - 0.15, zCenter);
+            outerBand.castShadow = true;
+            parentGroup.add(outerBand);
+
+            // Bandeau frontal sombre, puis filet doré sous la main courante.
+            const fasciaShape = createAnnularSectorShape(tier.innerR - 0.22, tier.innerR + 0.26, tier.angleSpan, zScale, 64);
+            const fasciaGeo = new THREE.ExtrudeGeometry(fasciaShape, { depth: 0.72, bevelEnabled: false });
+            const fascia = new THREE.Mesh(fasciaGeo, materials.BALCONY_PANEL);
+            fascia.rotation.x = -Math.PI / 2;
+            fascia.position.set(0, tier.yFloor - 0.18, zCenter);
+            fascia.castShadow = true;
+            parentGroup.add(fascia);
+
+            const trimShape = createAnnularSectorShape(tier.innerR - 0.28, tier.innerR + 0.06, tier.angleSpan, zScale, 64);
+            const trimGeo = new THREE.ExtrudeGeometry(trimShape, { depth: 0.10, bevelEnabled: false });
+            const trim = new THREE.Mesh(trimGeo, materials.BRASS_TRIM);
+            trim.rotation.x = -Math.PI / 2;
+            trim.position.set(0, tier.yFloor + tier.parapetH + 0.05, zCenter);
+            parentGroup.add(trim);
+
+            // Parapet frontal bas, complété par des balustres espacés.
+            const parapetShape = createAnnularSectorShape(tier.innerR - 0.18, tier.innerR + 0.02, tier.angleSpan, zScale, 64);
             const parapetGeo = new THREE.ExtrudeGeometry(parapetShape, { depth: tier.parapetH, bevelEnabled: false });
-            const parapetMesh = new THREE.Mesh(parapetGeo, materials.BALCONY_PANEL);
-            parapetMesh.rotation.x = -Math.PI / 2;
-            parapetMesh.position.set(0, tier.yFloor, -9);
-            parentGroup.add(parapetMesh);
+            const parapet = new THREE.Mesh(parapetGeo, materials.BALCONY_PANEL);
+            parapet.rotation.x = -Math.PI / 2;
+            parapet.position.set(0, tier.yFloor, zCenter);
+            parentGroup.add(parapet);
 
-            // Main courante en laiton doré poli au sommet du parapet
-            const railShape = createAnnularSectorShape(tier.innerR - 0.26, tier.innerR + 0.04, tier.angleSpan, 0.78, 48);
-            const railGeo = new THREE.ExtrudeGeometry(railShape, { depth: 0.08, bevelEnabled: false });
-            const railMesh = new THREE.Mesh(railGeo, materials.BRASS_TRIM);
-            railMesh.rotation.x = -Math.PI / 2;
-            railMesh.position.set(0, tier.yFloor + tier.parapetH, -9);
-            parentGroup.add(railMesh);
+            const balusterCount = tierIndex === 0 ? 19 : 17;
+            for (let i = 0; i < balusterCount; i++) {
+                const angle = (-tier.angleSpan / 2) + (i / (balusterCount - 1)) * tier.angleSpan;
+                const bx = Math.sin(angle) * (tier.innerR - 0.08);
+                const bz = zCenter + Math.cos(angle) * (tier.innerR - 0.08) * zScale;
+                const baluster = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.055, 0.075, 0.64, 8),
+                    materials.BRASS_TRIM
+                );
+                baluster.position.set(bx, tier.yFloor + tier.parapetH + 0.31, bz);
+                parentGroup.add(baluster);
+            }
 
-            // Appliques murales dorées à bougies sur la façade du balcon
+            // Main courante continue, plus haute et plus lisible depuis les vues caméra.
+            const railShape = createAnnularSectorShape(tier.innerR - 0.24, tier.innerR + 0.08, tier.angleSpan, zScale, 64);
+            const railGeo = new THREE.ExtrudeGeometry(railShape, { depth: 0.11, bevelEnabled: false });
+            const rail = new THREE.Mesh(railGeo, materials.BRASS_TRIM);
+            rail.rotation.x = -Math.PI / 2;
+            rail.position.set(0, tier.yFloor + tier.parapetH + 0.64, zCenter);
+            parentGroup.add(rail);
+
+            // Corbeaux et colonnes : chaque niveau repose visiblement sur le précédent.
+            const supportCount = tierIndex === 0 ? 7 : 6;
+            const supportHeight = tier.yFloor - tier.supportBottom;
+            for (let i = 0; i < supportCount; i++) {
+                const angle = (-tier.angleSpan / 2) + ((i + 0.5) / supportCount) * tier.angleSpan;
+                const sx = Math.sin(angle) * (tier.outerR - 0.55);
+                const sz = zCenter + Math.cos(angle) * (tier.outerR - 0.55) * zScale;
+
+                const column = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.22, 0.30, supportHeight, 12),
+                    materials.BALCONY_PANEL
+                );
+                column.position.set(sx, tier.supportBottom + supportHeight / 2, sz);
+                column.castShadow = true;
+                parentGroup.add(column);
+
+                const capital = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.72, 0.18, 0.72),
+                    materials.GOLD_LEAF
+                );
+                capital.position.set(sx, tier.yFloor - 0.54, sz);
+                capital.rotation.y = -angle;
+                parentGroup.add(capital);
+            }
+
+            // Appliques murales dorées à bougies sur la façade du balcon.
             const sconceCount = 9;
             for (let i = 0; i < sconceCount; i++) {
                 const angle = (-tier.angleSpan / 2) + (i / (sconceCount - 1)) * tier.angleSpan;
                 const sx = Math.sin(angle) * (tier.innerR - 0.25);
-                const sz = -9 + Math.cos(angle) * (tier.innerR - 0.25) * 0.78;
+                const sz = zCenter + Math.cos(angle) * (tier.innerR - 0.25) * zScale;
 
                 const sconceBracket = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25, 8), materials.GOLD_LEAF);
                 sconceBracket.position.set(sx, tier.yFloor + (tier.parapetH / 2), sz);
@@ -580,48 +704,70 @@
         // 1. Coussin d'assise moelleux en velours avec galbe
         const seatPart = new THREE.Mesh(sharedGeos.cushion, statusMaterial);
         seatPart.position.set(0, 0.44, 0);
-        seatPart.castShadow = true;
-        seatPart.receiveShadow = true;
+        // Les 400 fauteuils restent éclairés sans lancer chacun une ombre :
+        // cela réduit fortement le coût du rendu et évite les taches noires.
+        seatPart.castShadow = false;
+        seatPart.receiveShadow = false;
+        seatPart.userData.isVelvet = true;
         chairGroup.add(seatPart);
+
+        // Berceau inférieur sculpté en acajou sous le coussin
+        const seatBase = new THREE.Mesh(sharedGeos.cushionBase, materials.CHAIR_WOOD);
+        seatBase.position.set(0, 0.35, 0);
+        chairGroup.add(seatBase);
 
         // 2. Dossier rembourré capitonné incliné en velours
         const backPart = new THREE.Mesh(sharedGeos.backrest, statusMaterial);
         backPart.rotation.x = 0.12; // Légère inclinaison arrière naturelle
-        backPart.position.set(0, 0.88, 0.32);
-        backPart.castShadow = true;
+        backPart.position.set(0, 0.88, 0.30);
+        backPart.castShadow = false;
+        backPart.userData.isVelvet = true;
         chairGroup.add(backPart);
 
-        // Coque arrière en boiserie sculptée
+        // Coque arrière en boiserie acajou sculptée
         const backFrame = new THREE.Mesh(sharedGeos.backFrame, materials.CHAIR_WOOD);
         backFrame.rotation.x = 0.12;
-        backFrame.position.set(0, 0.88, 0.40);
+        backFrame.position.set(0, 0.88, 0.37);
         chairGroup.add(backFrame);
 
+        // Fronton / Couronnement galbé sculpté au sommet du dossier
+        const backCrest = new THREE.Mesh(sharedGeos.backCrest, materials.CHAIR_WOOD);
+        backCrest.rotation.x = Math.PI / 2 + 0.12;
+        backCrest.position.set(0, 1.22, 0.34);
+        chairGroup.add(backCrest);
+
+        // Plaque numéro de siège en laiton poli sur le dos du fauteuil
+        const plaque = new THREE.Mesh(sharedGeos.numberPlaque, materials.CHAIR_BRASS);
+        plaque.rotation.x = 0.12;
+        plaque.position.set(0, 1.14, 0.40);
+        chairGroup.add(plaque);
+
         // 3. Deux accoudoirs rembourrés avec manchons de laiton
-        const armOffsets = [-0.40, 0.40];
+        const armOffsets = [-0.38, 0.38];
         armOffsets.forEach(ox => {
             const armPad = new THREE.Mesh(sharedGeos.armrest, statusMaterial);
-            armPad.position.set(ox, 0.60, 0.02);
+            armPad.position.set(ox, 0.58, 0.02);
+            armPad.userData.isVelvet = true;
             chairGroup.add(armPad);
 
-            const armSupport = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.08), materials.CHAIR_WOOD);
-            armSupport.position.set(ox, 0.35, -0.22);
+            const armSupport = new THREE.Mesh(sharedGeos.armSupport, materials.CHAIR_WOOD);
+            armSupport.position.set(ox, 0.33, -0.20);
             chairGroup.add(armSupport);
 
             const armCap = new THREE.Mesh(sharedGeos.armCap, materials.CHAIR_BRASS);
             armCap.rotation.x = Math.PI / 2;
-            armCap.position.set(ox, 0.60, -0.26);
+            armCap.position.set(ox, 0.58, -0.26);
             chairGroup.add(armCap);
         });
 
-        // 4. Piètement vintage en fonte noire & platine de fixation
+        // 4. Piètement vintage en fonte noire & patin de sol
         const stanchion = new THREE.Mesh(sharedGeos.stanchion, materials.CHAIR_WOOD);
-        stanchion.position.set(0, 0.20, 0);
+        stanchion.position.set(0, 0.18, 0);
         chairGroup.add(stanchion);
 
-        const flange = new THREE.Mesh(sharedGeos.flange, materials.CHAIR_WOOD);
-        flange.position.set(0, 0.02, 0);
-        chairGroup.add(flange);
+        const foot = new THREE.Mesh(sharedGeos.legFoot, materials.CHAIR_WOOD);
+        foot.position.set(0, 0.02, 0);
+        chairGroup.add(foot);
 
         return chairGroup;
     }
@@ -631,25 +777,31 @@
         const spotGroup = new THREE.Group();
 
         // Disque central lumineux au sol
-        const discGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.04, 18);
-        const discMesh = new THREE.Mesh(discGeo, statusMaterial);
+        const discMesh = new THREE.Mesh(sharedGeos.standingDisc, statusMaterial);
         discMesh.position.y = 0.02;
+        discMesh.userData.isVelvet = true;
         spotGroup.add(discMesh);
 
         // Anneau extérieur en laiton
-        const rimGeo = new THREE.TorusGeometry(0.39, 0.025, 6, 24);
-        const rimMesh = new THREE.Mesh(rimGeo, materials.BRASS_TRIM);
+        const rimMesh = new THREE.Mesh(sharedGeos.standingRim, materials.BRASS_TRIM);
         rimMesh.rotation.x = Math.PI / 2;
         rimMesh.position.y = 0.03;
         spotGroup.add(rimMesh);
+
+        // Médaillon central doré
+        const badgeMesh = new THREE.Mesh(sharedGeos.standingBadge, materials.CHAIR_BRASS);
+        badgeMesh.position.y = 0.04;
+        spotGroup.add(badgeMesh);
 
         return spotGroup;
     }
 
     async function loadSeats() {
         const loader = document.getElementById('canvas-loader');
+        const isExplore = canvas.getAttribute('data-mode') === 'explore' || isNaN(eventId);
+        const url = isExplore ? '/api/venue/seats' : `/api/events/${eventId}/seats`;
         try {
-            const res = await fetch(`/api/events/${eventId}/seats`);
+            const res = await fetch(url);
             const data = await res.json();
             seatsData = data.seats || [];
             renderAllSeats();
@@ -678,6 +830,7 @@
         // Nettoyage complet
         seatMeshMap.forEach(mesh => scene.remove(mesh));
         seatMeshMap.clear();
+        seatPickRoots.length = 0;
 
         const holdsForMe = [];
 
@@ -719,12 +872,14 @@
             // Tous les mesh enfants partagent ces métadonnées pour détection instantanée
             seatObject.traverse(child => {
                 if (child.isMesh) {
-                    child.userData = seatObject.userData;
+                    const isVelvet = child.userData && child.userData.isVelvet ? true : false;
+                    child.userData = Object.assign({}, seatObject.userData, { isVelvet: isVelvet });
                 }
             });
 
             scene.add(seatObject);
             seatMeshMap.set(seat.id, seatObject);
+            seatPickRoots.push(seatObject);
         });
 
         updateCartDrawer(holdsForMe);
@@ -764,14 +919,18 @@
             }
             const colIndex = (number - 1) % 20;
 
-            const radius = 16.5 + (rowIndex * 1.95);
-            const angleSpan = Math.PI * 0.54;
+            // Fan compact derrière l'avant-scène : les rangées restent lisibles
+            // et la dernière rangée ne dérive pas vers la galerie.
+            const radius = 11.5 + (rowIndex * 1.35);
+            const angleSpan = 1.25;
             const angle = (-angleSpan / 2) + ((colIndex + 0.5) / 20) * angleSpan;
 
             x = Math.sin(angle) * radius;
-            z = -11.5 + (Math.cos(angle) * radius * 0.72);
+            z = -15.5 + (Math.cos(angle) * radius * 0.72);
             y = 0.05 + (rowIndex * 0.12); // Pente d'auditorium sans géométrie occultante
-            rotY = -angle; // Face au centre de scène
+            // Le dossier regarde vers le fond de scène, donc la rotation suit
+            // le vecteur réel entre le fauteuil et le centre du plateau.
+            rotY = Math.atan2(x, z + 25);
         } else if (zoneName === 'LEFT_BOX') {
             // 3 rangées superposées (L1, L2, L3) flanquant la scène à gauche
             let rowIndex = 0;
@@ -785,7 +944,7 @@
             x = -22.5 + (rowIndex * 1.3);
             z = -14.2 + (seatIndex * 1.45);
             y = 3.6 + (rowIndex * 2.2);
-            rotY = Math.PI * 0.38; // Orienté vers la scène
+            rotY = Math.atan2(x, z + 25); // Orienté vers le centre du plateau
         } else if (zoneName === 'RIGHT_BOX') {
             // 3 rangées superposées (R1, R2, R3) flanquant la scène à droite
             let rowIndex = 0;
@@ -799,7 +958,7 @@
             x = 22.5 - (rowIndex * 1.3);
             z = -14.2 + (seatIndex * 1.45);
             y = 3.6 + (rowIndex * 2.2);
-            rotY = -Math.PI * 0.38; // Orienté vers la scène
+            rotY = Math.atan2(x, z + 25); // Orienté vers le centre du plateau
         } else if (zoneName === 'BALCONY') {
             // 5 rangées incurvées le long du fer à cheval supérieur
             let rowIndex = 0;
@@ -813,13 +972,15 @@
             const colIndex = (number - 1) % 20;
 
             const radius = 32.2 + (rowIndex * 1.35);
-            const angleSpan = Math.PI * 0.64;
+            // Les 20 fauteuils occupent une portion resserrée de la galerie :
+            // une courbe lisible, sans les grands espaces qui les faisaient flotter.
+            const angleSpan = 0.92;
             const angle = (-angleSpan / 2) + ((colIndex + 0.5) / 20) * angleSpan;
 
             x = Math.sin(angle) * radius;
-            z = -9.0 + (Math.cos(angle) * radius * 0.78);
-            y = 7.0 + (rowIndex * 0.65); // Étage supérieur étagé
-            rotY = -angle;
+            z = -11.5 + (Math.cos(angle) * radius * 0.78);
+            y = 7.1 + (rowIndex * 0.68); // Chaque rangée repose sur son gradin
+            rotY = Math.atan2(x, z + 25);
         }
 
         return { x, y, z, rotY };
@@ -836,7 +997,7 @@
 
                 const statusMat = materials[status] || materials.AVAILABLE;
                 chair.traverse(child => {
-                    if (child.isMesh && (child.geometry === sharedGeos.cushion || child.geometry === sharedGeos.backrest || child.geometry === sharedGeos.armrest)) {
+                    if (child.isMesh && (child.userData.isVelvet || child.geometry === sharedGeos.cushion || child.geometry === sharedGeos.backrest || child.geometry === sharedGeos.armrest || child.geometry === sharedGeos.standingDisc)) {
                         child.material = statusMat;
                     }
                 });
@@ -849,13 +1010,31 @@
         updateCartDrawer(holdsForMe);
     }
 
+    function onPointerDown(event) {
+        pointerDownPos.x = event.clientX;
+        pointerDownPos.y = event.clientY;
+        dismissHint();
+    }
+
+    function dismissHint() {
+        if (hintDismissed) return;
+        hintDismissed = true;
+        const hint = document.getElementById('interaction-hint');
+        if (hint) {
+            hint.style.opacity = '0';
+            hint.style.transform = 'translateY(6px)';
+            setTimeout(() => { if (hint.parentNode) hint.parentNode.removeChild(hint); }, 400);
+        }
+    }
+
     function onPointerMove(event) {
+        dismissHint();
         const rect = canvas.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(scene.children, true);
+        const intersects = raycaster.intersectObjects(seatPickRoots, true);
 
         const tooltip = document.getElementById('seat-tooltip');
         let foundTarget = null;
@@ -883,7 +1062,7 @@
                 const prevStatus = hoveredSeatGroup.userData.status || 'AVAILABLE';
                 const matToRestore = materials[prevStatus] || materials.AVAILABLE;
                 hoveredSeatGroup.traverse(c => {
-                    if (c.isMesh && (c.geometry === sharedGeos.cushion || c.geometry === sharedGeos.backrest)) {
+                    if (c.isMesh && (c.userData.isVelvet || c.geometry === sharedGeos.cushion || c.geometry === sharedGeos.backrest || c.geometry === sharedGeos.standingDisc)) {
                         c.material = matToRestore;
                     }
                 });
@@ -896,7 +1075,7 @@
 
                 if (foundTarget.status === 'AVAILABLE') {
                     foundGroup.traverse(c => {
-                        if (c.isMesh && (c.geometry === sharedGeos.cushion || c.geometry === sharedGeos.backrest)) {
+                        if (c.isMesh && (c.userData.isVelvet || c.geometry === sharedGeos.cushion || c.geometry === sharedGeos.backrest || c.geometry === sharedGeos.standingDisc)) {
                             c.material = materials.HOVER_SHEEN;
                         }
                     });
@@ -905,24 +1084,47 @@
             hoveredSeatGroup = foundGroup;
         }
 
+        const banner = document.getElementById('zone-banner');
         if (foundTarget) {
             canvas.style.cursor = 'pointer';
+            if (banner) {
+                clearTimeout(zoneBannerTimeout);
+                banner.textContent = formatZoneName(foundTarget.zoneName);
+                banner.style.opacity = '1';
+                banner.style.transform = 'translateX(-50%) translateY(0)';
+            }
             if (tooltip) {
                 tooltip.style.left = `${event.clientX - rect.left + 16}px`;
                 tooltip.style.top = `${event.clientY - rect.top - 20}px`;
                 tooltip.classList.remove('hidden');
                 tooltip.style.display = 'block';
 
+                const isExplore = canvas.getAttribute('data-mode') === 'explore' || isNaN(eventId);
                 document.getElementById('tooltip-seat-name').innerText = `Rang ${foundTarget.row} — N° ${foundTarget.number}`;
                 document.getElementById('tooltip-seat-zone').innerText = formatZoneName(foundTarget.zoneName);
-                document.getElementById('tooltip-seat-price').innerText = `${Math.round(foundTarget.priceCents / 100)} MAD`;
 
+                const priceEl = document.getElementById('tooltip-seat-price');
                 const statusEl = document.getElementById('tooltip-seat-status');
-                statusEl.innerText = formatStatusLabel(foundTarget.status);
-                statusEl.className = formatStatusClass(foundTarget.status);
+                if (isExplore) {
+                    if (priceEl) priceEl.innerText = 'Visite libre';
+                    if (statusEl) {
+                        statusEl.innerText = 'Emplacement numéroté';
+                        statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-500/10 text-amber-300 border-amber-500/20';
+                    }
+                } else {
+                    if (priceEl) priceEl.innerText = `${Math.round(foundTarget.priceCents / 100)} MAD`;
+                    if (statusEl) {
+                        statusEl.innerText = formatStatusLabel(foundTarget.status);
+                        statusEl.className = formatStatusClass(foundTarget.status);
+                    }
+                }
             }
         } else {
             canvas.style.cursor = 'default';
+            if (banner) {
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateX(-50%) translateY(-6px)';
+            }
             if (tooltip) {
                 tooltip.classList.add('hidden');
                 tooltip.style.display = 'none';
@@ -963,12 +1165,22 @@
     }
 
     async function onCanvasClick(event) {
+        dismissHint();
+        if (canvas.getAttribute('data-mode') === 'explore' || isNaN(eventId)) {
+            // Mode visite libre : pas d'action de réservation au clic
+            return;
+        }
+
+        const dx = event.clientX - pointerDownPos.x;
+        const dy = event.clientY - pointerDownPos.y;
+        if (Math.hypot(dx, dy) > 6) return; // Ignore drag release from camera orbit
+
         const rect = canvas.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(scene.children, true);
+        const intersects = raycaster.intersectObjects(seatPickRoots, true);
 
         let targetData = null;
         for (let i = 0; i < intersects.length; i++) {
@@ -1042,6 +1254,7 @@
     window.releaseSeatFromCart = releaseSeat;
 
     function updateCartDrawer(holdsForMe) {
+        if (canvas.getAttribute('data-mode') === 'explore') return;
         const listEl = document.getElementById('held-seats-list');
         const countBadge = document.getElementById('held-count-badge');
         const totalEl = document.getElementById('held-total-price');
@@ -1068,15 +1281,16 @@
         holdsForMe.forEach(s => {
             totalCents += s.priceCents;
             const priceMad = Math.round(s.priceCents / 100);
-            const m = s.holdTtl ? Math.floor(s.holdTtl / 60) : 15;
-            const sec = s.holdTtl ? (s.holdTtl % 60).toString().padStart(2, '0') : '00';
+            const initTtl = s.holdTtl !== undefined && s.holdTtl !== null ? s.holdTtl : 900;
+            const m = Math.floor(initTtl / 60);
+            const sec = (initTtl % 60).toString().padStart(2, '0');
 
             html += `
                 <div class="seat-item">
                     <div>
                         <div style="font-weight:500;color:var(--cream);">Rang ${s.row} — N° ${s.number}</div>
                         <div class="meta" style="font-size:0.75rem;">${formatZoneName(s.zone ? s.zone.name : '')} · ${priceMad} MAD</div>
-                        <div class="meta" style="font-size:0.7rem;color:var(--muted);font-family:monospace;margin-top:2px;">Réservé encore ${m}:${sec}</div>
+                        <div class="meta" style="font-size:0.7rem;color:var(--muted);font-family:monospace;margin-top:2px;">Réservé encore <span class="seat-countdown" data-ttl="${initTtl}">${m}:${sec}</span></div>
                     </div>
                     <button type="button" onclick="releaseSeatFromCart(${s.id})" class="meta" style="cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:1px;">
                         Retirer
@@ -1122,22 +1336,47 @@
     window.setCameraPreset = function (mode) {
         if (!controls || !camera) return;
 
+        // Mise à jour de l'état actif sur les boutons
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            if (btn.getAttribute('data-view') === mode) {
+                btn.classList.add('active-view');
+            } else {
+                btn.classList.remove('active-view');
+            }
+        });
+
         let targetPos, targetLookAt;
 
         if (mode === 'scene') {
             // Vue Scène : Perspective de l'artiste depuis le plateau vers les 400 places & le lustre
-            targetPos = new THREE.Vector3(0, 2.5, -20);
-            targetLookAt = new THREE.Vector3(0, 5, 12);
+            targetPos = new THREE.Vector3(0, 4.5, -19);
+            targetLookAt = new THREE.Vector3(0, 7, 8);
         } else if (mode === 'top') {
             // Plan 2D : Vue zénithale architecturale
             targetPos = new THREE.Vector3(0, 55, 0.01);
             targetLookAt = new THREE.Vector3(0, 0, 0);
-        } else if (mode === 'orchestre' || mode === 'orchestra') {
-            // Orchestre : Perspective spectateur assis face au proscénium
-            targetPos = new THREE.Vector3(0, 2.0, -3);
-            targetLookAt = new THREE.Vector3(0, 4, -22);
+        } else if (mode === 'orchestra' || mode === 'orchestre') {
+            // Zoom Orchestre : Cadrage plongeant direct sur les 160 fauteuils
+            targetPos = new THREE.Vector3(0, 16.5, 23);
+            targetLookAt = new THREE.Vector3(0, 1.2, 4.0);
+        } else if (mode === 'front_stage' || mode === 'avant_scene') {
+            // Zoom Avant-Scène : Gros plan sur les fauteuils / fosse devant la scène
+            targetPos = new THREE.Vector3(0, 8.5, -2.5);
+            targetLookAt = new THREE.Vector3(0, 0.5, -12.5);
+        } else if (mode === 'balcony' || mode === 'balcon') {
+            // Zoom Balcon : Cadrage du fer à cheval supérieur
+            targetPos = new THREE.Vector3(0, 19, -4);
+            targetLookAt = new THREE.Vector3(0, 8.5, 15);
+        } else if (mode === 'left_box' || mode === 'loge_gauche') {
+            // Zoom Loges Gauche : Vue en face depuis la droite
+            targetPos = new THREE.Vector3(4.0, 9.0, -7.0);
+            targetLookAt = new THREE.Vector3(-21.5, 5.5, -7.0);
+        } else if (mode === 'right_box' || mode === 'loge_droite') {
+            // Zoom Loges Droite : Vue en face depuis la gauche
+            targetPos = new THREE.Vector3(-4.0, 9.0, -7.0);
+            targetLookAt = new THREE.Vector3(21.5, 5.5, -7.0);
         } else {
-            // Panoramique par défaut : Vue d'ensemble plongeante (toutes les places visibles)
+            // Vue Achat / Panoramique d'ensemble
             targetPos = new THREE.Vector3(0, 32, 42);
             targetLookAt = new THREE.Vector3(0, 2, -4);
         }
@@ -1154,20 +1393,6 @@
             startTime: performance.now(),
             duration: durationMs
         };
-    }
-
-    function injectOrchestraPresetButton() {
-        const cameraToolbar = document.querySelector('#theater-canvas-container > div');
-        if (cameraToolbar && !document.getElementById('btn-preset-orchestre')) {
-            const btn = document.createElement('button');
-            btn.id = 'btn-preset-orchestre';
-            btn.type = 'button';
-            btn.className = 'btn btn-ghost';
-            btn.style.cssText = 'height:34px;padding-inline:14px;background:rgba(12,10,11,0.85);font-size:0.75rem;';
-            btn.innerText = 'Orchestre';
-            btn.onclick = () => window.setCameraPreset('orchestre');
-            cameraToolbar.appendChild(btn);
-        }
     }
 
     function onWindowResize() {
@@ -1208,7 +1433,13 @@
             chandelierGroup.rotation.x = Math.cos(t * 0.35) * 0.004;
         }
 
-        // 3. Render
+        // 3. Pulsation lumineuse des sièges sélectionnés
+        if (materials.HELD_BY_ME) {
+            heldByMePulseT = now * 0.003;
+            materials.HELD_BY_ME.emissiveIntensity = 0.35 + Math.sin(heldByMePulseT) * 0.25;
+        }
+
+        // 4. Render
         if (renderer && scene && camera) {
             renderer.render(scene, camera);
         }

@@ -1,0 +1,200 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}La Grande Salle — Visite 3D Interactive | Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    #theater-canvas-container {
+        position: relative;
+        width: 100%;
+        height: 720px;
+        background: radial-gradient(circle at center, #141113 0%, var(--ink) 100%);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #theater-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    #seat-tooltip {
+        pointer-events: none;
+        transition: opacity 0.15s ease-out;
+        z-index: 30;
+    }
+
+    .view-btn.active-view {
+        border-color: var(--amber) !important;
+        color: var(--amber) !important;
+        box-shadow: 0 0 10px rgba(229, 169, 60, 0.25);
+    }
+
+    .venue-spec-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-top: 48px;
+    }
+
+    .venue-card {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 28px 24px;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap" style="padding-top:48px;padding-bottom:80px;">
+
+    <!-- Top Breadcrumb / Title -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;margin-bottom:32px;">
+        <p class="meta" style="margin-bottom:12px;">
+            <a href="/#programme" style="border-bottom:1px solid var(--rule);padding-bottom:2px;">← Retour au programme</a>
+            &nbsp;·&nbsp;
+            <span>Architecture & Patrimoine</span>
+            &nbsp;·&nbsp;
+            <strong>Salle Historique de 400 Places</strong>
+        </p>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+            <div>
+                <h1 class="display" style="font-size:var(--t-1);line-height:1.05;">
+                    La Grande Salle
+                </h1>
+                <p class="meta" style="margin-top:8px;max-width:56ch;font-size:var(--t-4);line-height:1.5;">
+                    Une architecture inspirée de l'Opéra Garnier mêlant velours cramoisi, acajou sculpté et moulures dorées à la feuille.
+                </p>
+            </div>
+            <div>
+                <a href="/#programme" class="btn btn-solid" style="height:42px;padding-inline:20px;">
+                    Voir les spectacles →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D Canvas Viewport (Explore Mode) -->
+    <div>
+        <div id="theater-canvas-container">
+            <canvas id="theater-canvas" data-mode="explore" data-is-standing="false"></canvas>
+
+            <!-- Camera Controls & Zone Focus Toolbar -->
+            <div style="position:absolute;top:16px;left:16px;z-index:20;display:flex;flex-direction:column;gap:8px;max-width:calc(100% - 32px);">
+                <!-- Perspectives générales -->
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <button type="button" onclick="setCameraPreset('panoramic')" class="btn btn-ghost view-btn active-view" data-view="panoramic" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                        Vue Panoramique
+                    </button>
+                    <button type="button" onclick="setCameraPreset('top')" class="btn btn-ghost view-btn" data-view="top" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                        Plan 2D
+                    </button>
+                    <button type="button" onclick="setCameraPreset('scene')" class="btn btn-ghost view-btn" data-view="scene" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                        Vue Scène
+                    </button>
+                </div>
+
+                <!-- Zoom direct par zone pour exploration précise -->
+                <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:rgba(12,10,11,0.88);border:1px solid var(--rule);border-radius:6px;padding:3px 6px;">
+                    <span style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding-inline:4px;">Zone :</span>
+                    <button type="button" onclick="setCameraPreset('orchestra')" class="btn btn-ghost view-btn" data-view="orchestra" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                        Orchestre
+                    </button>
+                    <button type="button" onclick="setCameraPreset('front_stage')" class="btn btn-ghost view-btn" data-view="front_stage" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                        Avant-Scène
+                    </button>
+                    <button type="button" onclick="setCameraPreset('balcony')" class="btn btn-ghost view-btn" data-view="balcony" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                        Balcon
+                    </button>
+                    <button type="button" onclick="setCameraPreset('left_box')" class="btn btn-ghost view-btn" data-view="left_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                        Loges G.
+                    </button>
+                    <button type="button" onclick="setCameraPreset('right_box')" class="btn btn-ghost view-btn" data-view="right_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                        Loges D.
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zone banner — shown on seat hover -->
+            <div id="zone-banner" style="position:absolute;top:16px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:22;background:rgba(12,10,11,0.85);border:1px solid var(--rule);padding:6px 18px;border-radius:999px;font-size:0.75rem;color:var(--cream);letter-spacing:0.04em;opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;pointer-events:none;"></div>
+
+            <!-- Exploration Legend -->
+            <div style="position:absolute;bottom:16px;left:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;display:flex;gap:20px;font-size:0.75rem;color:var(--muted);">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#850d18;border:1px solid rgba(255,255,255,0.2);"></span>
+                    <span>400 Fauteuils d'Opéra</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#d4af37;"></span>
+                    <span>5 Zones Acoustiques</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4);"></span>
+                    <span>Visite Libre</span>
+                </div>
+            </div>
+
+            <!-- Interaction hint — dismissed on first interaction -->
+            <div id="interaction-hint" style="position:absolute;bottom:16px;right:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;font-size:0.72rem;color:var(--muted);white-space:nowrap;transition:opacity 0.4s ease,transform 0.4s ease;pointer-events:none;">
+                🖱 Glissez pour pivoter · Zoom molette · Survolez les fauteuils
+            </div>
+
+            <!-- Hover Tooltip -->
+            <div id="seat-tooltip" style="position:absolute;display:none;background:var(--ink-2);border:1px solid var(--rule);padding:10px 14px;border-radius:4px;font-size:0.75rem;color:var(--cream);box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+                <div id="tooltip-seat-name" style="font-family:var(--display);font-size:0.95rem;font-weight:500;">Rang A — N° 01</div>
+                <div id="tooltip-seat-zone" style="color:var(--muted);font-size:0.75rem;">Orchestre</div>
+                <div style="display:flex;justify-content:space-between;gap:16px;margin-top:4px;">
+                    <span id="tooltip-seat-price" style="font-weight:500;color:var(--cream);">Visite libre</span>
+                    <span id="tooltip-seat-status" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-500/10 text-amber-300 border-amber-500/20">Emplacement numéroté</span>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div id="canvas-loader" style="position:absolute;inset:0;z-index:30;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .3s;">
+                <div style="width:28px;height:28px;border:2px solid var(--rule);border-top-color:var(--crimson);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                <span class="meta">Chargement de la salle en 3D...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architectural Details Grid -->
+    <div class="venue-spec-grid">
+        <div class="venue-card">
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--crimson);margin-bottom:8px;">Le Proscénium</p>
+            <h3 class="display" style="font-size:var(--t-3);margin-bottom:12px;">Arche Royale & Velours Plissé</h3>
+            <p class="meta" style="line-height:1.6;">
+                Une scène surélevée encadrée d'une arche baroque sculptée à feuilles d'or, flanquée de colonnes corinthiennes et d'une rampe de feux d'avant-scène chaleureuse.
+            </p>
+        </div>
+
+        <div class="venue-card">
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--crimson);margin-bottom:8px;">L'Auditorium</p>
+            <h3 class="display" style="font-size:var(--t-3);margin-bottom:12px;">Fer à Cheval & Loges Privées</h3>
+            <p class="meta" style="line-height:1.6;">
+                Un balcon et une galerie en fer à cheval à anneau continu creux, entourés de 6 loges de prestige superposées offrant intimité et perspective imprenable.
+            </p>
+        </div>
+
+        <div class="venue-card">
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--crimson);margin-bottom:8px;">La Scénographie</p>
+            <h3 class="display" style="font-size:var(--t-3);margin-bottom:12px;">Grand Lustre de Cristal</h3>
+            <p class="meta" style="line-height:1.6;">
+                Suspendu à la voûte avec balancement atmosphérique subtil, le candélabre à bougeoirs dorés et pampilles facettées baigne la salle dans une ambiance feutrée.
+            </p>
+        </div>
+    </div>
+
+</div>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="/js/theater-3d.js?v=2.2"></script>
+{% endblock %}

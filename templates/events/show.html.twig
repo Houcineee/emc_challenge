@@ -50,6 +50,12 @@
     .seat-item:first-child { padding-top: 0; }
     .seat-item:last-child { border-bottom: 0; }
 
+    .view-btn.active-view {
+        border-color: var(--amber) !important;
+        color: var(--amber) !important;
+        box-shadow: 0 0 10px rgba(229, 169, 60, 0.25);
+    }
+
     @media (max-width: 960px) {
         .booking-grid { grid-template-columns: 1fr; }
     }
@@ -88,33 +94,64 @@
             <div id="theater-canvas-container">
                 <canvas id="theater-canvas" data-event-id="{{ event.id }}" data-is-standing="{{ isFrontStageStanding ? 'true' : 'false' }}"></canvas>
 
-                <!-- Camera Controls -->
-                <div style="position:absolute;top:16px;left:16px;z-index:20;display:flex;gap:8px;">
-                    <button type="button" onclick="setCameraPreset('panoramic')" class="btn btn-ghost" style="height:34px;padding-inline:14px;background:rgba(12,10,11,0.85);font-size:0.75rem;">
-                        Panoramique
-                    </button>
-                    <button type="button" onclick="setCameraPreset('top')" class="btn btn-ghost" style="height:34px;padding-inline:14px;background:rgba(12,10,11,0.85);font-size:0.75rem;">
-                        Plan 2D
-                    </button>
-                    <button type="button" onclick="setCameraPreset('scene')" class="btn btn-ghost" style="height:34px;padding-inline:14px;background:rgba(12,10,11,0.85);font-size:0.75rem;">
-                        Vue Scène
-                    </button>
+                <!-- Camera Controls & Zone Focus Toolbar -->
+                <div style="position:absolute;top:16px;left:16px;z-index:20;display:flex;flex-direction:column;gap:8px;max-width:calc(100% - 32px);">
+                    <!-- Perspectives générales -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                        <button type="button" onclick="setCameraPreset('panoramic')" class="btn btn-ghost view-btn active-view" data-view="panoramic" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Vue Achat
+                        </button>
+                        <button type="button" onclick="setCameraPreset('top')" class="btn btn-ghost view-btn" data-view="top" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Plan 2D
+                        </button>
+                        <button type="button" onclick="setCameraPreset('scene')" class="btn btn-ghost view-btn" data-view="scene" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Vue Scène
+                        </button>
+                    </div>
+
+                    <!-- Zoom direct par zone pour choix précis -->
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:rgba(12,10,11,0.88);border:1px solid var(--rule);border-radius:6px;padding:3px 6px;">
+                        <span style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding-inline:4px;">Zone :</span>
+                        <button type="button" onclick="setCameraPreset('orchestra')" class="btn btn-ghost view-btn" data-view="orchestra" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Orchestre
+                        </button>
+                        <button type="button" onclick="setCameraPreset('front_stage')" class="btn btn-ghost view-btn" data-view="front_stage" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Avant-Scène
+                        </button>
+                        <button type="button" onclick="setCameraPreset('balcony')" class="btn btn-ghost view-btn" data-view="balcony" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Balcon
+                        </button>
+                        <button type="button" onclick="setCameraPreset('left_box')" class="btn btn-ghost view-btn" data-view="left_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Loges G.
+                        </button>
+                        <button type="button" onclick="setCameraPreset('right_box')" class="btn btn-ghost view-btn" data-view="right_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Loges D.
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Zone banner — shown on seat hover -->
+                <div id="zone-banner" style="position:absolute;top:16px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:22;background:rgba(12,10,11,0.85);border:1px solid var(--rule);padding:6px 18px;border-radius:999px;font-size:0.75rem;color:var(--cream);letter-spacing:0.04em;opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;pointer-events:none;"></div>
 
                 <!-- Minimalist Legend -->
                 <div style="position:absolute;bottom:16px;left:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;display:flex;gap:20px;font-size:0.75rem;color:var(--muted);">
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#850d18;border:1px solid rgba(255,255,255,0.2);"></span>
                         <span>Disponible</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#e5a93c;"></span>
                         <span>Sélectionné</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:#4a4246;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#262024;border:1px solid rgba(255,255,255,0.15);"></span>
                         <span>Occupé</span>
                     </div>
+                </div>
+
+                <!-- Interaction hint — dismissed on first interaction -->
+                <div id="interaction-hint" style="position:absolute;bottom:16px;right:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;font-size:0.72rem;color:var(--muted);white-space:nowrap;transition:opacity 0.4s ease,transform 0.4s ease;pointer-events:none;">
+                    🖱 Cliquez pour choisir · Glissez pour pivoter · Zoom molette
                 </div>
 
                 <!-- Hover Tooltip -->
