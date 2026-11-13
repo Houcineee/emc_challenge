@@ -15,6 +15,14 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class ApiEndpointsTest extends WebTestCase
 {
+    private \DateTimeImmutable $testStartedAt;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->testStartedAt = new \DateTimeImmutable();
+    }
+
     private function loginAs(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $role): void
     {
         $credentials = [
@@ -51,7 +59,13 @@ class ApiEndpointsTest extends WebTestCase
         $container = static::getContainer();
         $em = $container->get(EntityManagerInterface::class);
         $em->createQuery('DELETE FROM App\Entity\Ticket t WHERE t.paidAt >= :since')
-            ->setParameter('since', new \DateTimeImmutable('-5 minutes'))
+            ->setParameter('since', $this->testStartedAt)
+            ->execute();
+        $em->createQuery('DELETE FROM App\Entity\Coupon c WHERE c.code LIKE :prefix')
+            ->setParameter('prefix', 'TESTVIP%')
+            ->execute();
+        $em->createQuery('DELETE FROM App\Entity\Event e WHERE e.title = :title')
+            ->setParameter('title', 'Festival Jazz & Rhythms')
             ->execute();
         parent::tearDown();
     }
