@@ -1,23 +1,578 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Théâtre Royal — Billetterie Officielle{% endblock %}</title>
+    
+    <!-- Google Fonts: Playfair Display & Inter Tight -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Ravensgate Opera Design System Tokens -->
+    <style>
+        :root {
+            /* Type scale */
+            --t-1: clamp(2.5rem, 5vw, 4.25rem);
+            --t-2: clamp(1.8rem, 3vw, 2.5rem);
+            --t-3: 1.35rem;
+            --t-4: 1.05rem;
+            --t-5: 0.8125rem;
 
-        {% block javascripts %}
-        {% endblock %}
+            /* Ravensgate Palette */
+            --ink: #0C0A0B;
+            --ink-2: #171316;
+            --crimson: #B3121F;
+            --crimson-hover: #C8172A;
+            --crimson-deep: #6A0A12;
+            --cream: #F3EADB;
+            --muted: #A2969A;
+            --rule: rgba(243, 234, 219, 0.14);
 
-        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphp_hot_reload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
-    </head>
-    <body>
+            --display: "Playfair Display", "Iowan Old Style", Georgia, serif;
+            --sans: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+
+            --seam: clamp(64px, 8vw, 120px);
+            --wrap: 1360px;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background: var(--ink);
+            color: var(--cream);
+            font-family: var(--sans);
+            font-size: var(--t-4);
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        a { color: inherit; text-decoration: none; }
+        h1, h2, h3, p, ul, ol { margin: 0; }
+        ul, ol { padding: 0; list-style: none; }
+        button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+        .wrap {
+            max-width: var(--wrap);
+            margin-inline: auto;
+            padding-inline: clamp(20px, 4vw, 48px);
+        }
+
+        .meta {
+            font-size: var(--t-5);
+            letter-spacing: 0.01em;
+            color: var(--muted);
+        }
+        .meta strong { color: var(--cream); font-weight: 500; }
+
+        .display { font-family: var(--display); font-weight: 400; letter-spacing: -0.01em; }
+        em { font-style: italic; }
+
+        section { padding-block: var(--seam); }
+        section + section { border-top: 1px solid var(--rule); }
+
+        .section-head {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: end;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        .section-head h2 { font-size: var(--t-2); line-height: 1.05; max-width: 20ch; }
+        .section-head .meta { padding-bottom: 6px; }
+
+        .arrow-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: var(--t-5);
+            color: var(--cream);
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 4px;
+            transition: border-color .2s, color .2s;
+        }
+        .arrow-link:hover { color: var(--crimson); border-color: var(--crimson); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            height: 46px;
+            padding-inline: 24px;
+            border-radius: 999px;
+            font-size: var(--t-5);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: background .2s, color .2s, border-color .2s, transform .15s;
+        }
+        .btn-solid { background: var(--crimson); color: var(--cream); }
+        .btn-solid:hover { background: var(--crimson-hover); }
+        .btn-ghost { border: 1px solid var(--rule); color: var(--cream); }
+        .btn-ghost:hover { border-color: var(--cream); }
+
+        .app-toast-region {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 300;
+            display: grid;
+            gap: 10px;
+            width: min(390px, calc(100vw - 32px));
+            pointer-events: none;
+        }
+
+        .app-toast {
+            display: grid;
+            grid-template-columns: 3px 1fr auto;
+            gap: 14px;
+            align-items: start;
+            padding: 16px 16px 16px 0;
+            background: rgba(23, 19, 22, 0.96);
+            border: 1px solid var(--rule);
+            border-radius: 6px;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+            pointer-events: auto;
+            animation: app-toast-in .24s ease-out both;
+        }
+
+        .app-toast::before {
+            content: "";
+            width: 3px;
+            height: 100%;
+            min-height: 28px;
+            background: var(--crimson);
+        }
+
+        .app-toast.success::before { background: #d4af37; }
+        .app-toast-title {
+            display: block;
+            margin-bottom: 2px;
+            color: var(--cream);
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .app-toast-message {
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+        .app-toast-close {
+            color: var(--muted);
+            font-size: 1.15rem;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .app-toast-close:hover { color: var(--cream); }
+
+        .app-confirm-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 290;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(12, 10, 11, 0.78);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .app-confirm-backdrop.hidden { display: none; }
+        .app-confirm-card {
+            width: min(460px, 100%);
+            padding: 28px;
+            background: var(--ink-2);
+            border: 1px solid var(--rule);
+            border-radius: 8px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+            animation: app-confirm-in .2s ease-out both;
+        }
+        .app-confirm-card h2 {
+            margin-bottom: 8px;
+            font-family: var(--display);
+            font-size: var(--t-3);
+            font-weight: 400;
+            line-height: 1.15;
+        }
+        .app-confirm-card p {
+            color: var(--muted);
+            font-size: 0.86rem;
+            line-height: 1.55;
+        }
+        .app-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 24px;
+        }
+        .app-confirm-actions .danger {
+            background: var(--crimson);
+            color: var(--cream);
+        }
+        .app-confirm-actions .danger:hover { background: var(--crimson-hover); }
+
+        @keyframes app-toast-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes app-confirm-in {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Navigation */
+        .nav {
+            border-bottom: 1px solid var(--rule);
+            background: rgba(12, 10, 11, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .nav .wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+            gap: 24px;
+            max-width: 1560px;
+            margin-inline: 0;
+            margin-left: clamp(24px, 5vw, 88px);
+            margin-right: clamp(24px, 5vw, 88px);
+            padding-inline: 0;
+        }
+        .wordmark {
+            font-family: var(--display);
+            font-size: 1.45rem;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .wordmark span {
+            font-family: var(--sans);
+            font-size: var(--t-5);
+            color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+        .nav-links { display: flex; gap: 28px; font-size: var(--t-5); }
+        .nav-links a { color: var(--muted); transition: color .2s; }
+        .nav-links a:hover { color: var(--cream); }
+        .nav-cta { display: flex; align-items: center; gap: 16px; }
+
+        .cart-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 38px;
+            padding-inline: 14px;
+            border-radius: 999px;
+            border: 1px solid var(--rule);
+            font-size: var(--t-5);
+            color: var(--cream);
+            transition: border-color .2s;
+        }
+        .cart-pill:hover { border-color: var(--cream); }
+        .cart-badge {
+            background: var(--crimson);
+            color: var(--cream);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+        .cart-timer {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--rule);
+            padding-block: 64px 40px;
+            background: var(--ink-2);
+            margin-top: 96px;
+        }
+        .foot-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+            gap: 40px;
+        }
+        .foot-grid h3 {
+            font-size: var(--t-5);
+            color: var(--muted);
+            font-weight: 400;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .foot-grid ul { display: grid; gap: 10px; font-size: var(--t-5); }
+        .foot-grid a { color: var(--muted); transition: color .2s; }
+        .foot-grid a:hover { color: var(--cream); }
+        .foot-brand p {
+            color: var(--muted);
+            font-size: var(--t-5);
+            max-width: 36ch;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+        .foot-bottom {
+            margin-top: 48px;
+            padding-top: 22px;
+            border-top: 1px solid var(--rule);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: var(--t-5);
+            color: var(--muted);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--ink); }
+        ::-webkit-scrollbar-thumb { background: #262024; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--crimson); }
+
+        @media (max-width: 960px) {
+            .nav-links { display: none; }
+            .foot-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+            .foot-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+
+    {% block stylesheets %}{% endblock %}
+</head>
+<body>
+
+    <!-- Primary Navigation -->
+    <header class="nav">
+        <div class="wrap">
+            <a class="wordmark" href="/">
+                Théâtre Royal <span>Scène & Billetterie</span>
+            </a>
+            <nav class="nav-links" aria-label="Navigation principale">
+                <a href="/#programme">Programme</a>
+                <a href="/#calendrier">Calendrier</a>
+                <a href="/#tarifs">Tarifs</a>
+                <a href="/tickets/my">Mes Billets</a>
+                {% if is_granted('ROLE_ADMIN') %}
+                <a href="/admin" style="color:var(--crimson)">Direction</a>
+                {% endif %}
+                {% if is_granted('ROLE_CASHIER') or is_granted('ROLE_ADMIN') %}
+                <a href="/cashier">Guichet</a>
+                {% endif %}
+            </nav>
+            <div class="nav-cta">
+                <a href="/checkout" class="cart-pill" id="cart-header-button">
+                    <span>Panier</span>
+                    <span class="cart-badge" id="cart-count-badge">0</span>
+                    <span class="cart-timer hidden" id="cart-timer-container">
+                        <span id="cart-timer-display">15:00</span>
+                    </span>
+                </a>
+
+                {% if app.user %}
+                <span class="meta" style="font-size:0.75rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {{ app.user.email }}
+                </span>
+                <button type="button" onclick="logout()" class="meta" style="cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:1px;">
+                    Quitter
+                </button>
+                {% else %}
+                <a class="btn btn-ghost" href="/login" style="height:38px;padding-inline:18px;">
+                    Connexion
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main>
         {% block body %}{% endblock %}
-    </body>
+    </main>
+
+    <!-- Four-column Cultural Footer (Ravensgate Style) -->
+    <footer>
+        <div class="wrap">
+            <div class="foot-grid">
+                <div class="foot-brand">
+                    <div class="wordmark">Théâtre Royal <span>1884</span></div>
+                    <p>
+                        Salle de spectacle modulable de 400 places.<br>
+                        Avenue des Arts, Quartier des Théâtres.<br>
+                        Billetterie ouverte du mardi au samedi, 11h — 19h.
+                    </p>
+                    <p class="meta" style="margin-top:14px;">
+                        Téléphone : +212 5 28 00 00 00
+                    </p>
+                </div>
+                <div>
+                    <h3>Saison 2026-2027</h3>
+                    <ul>
+                        <li><a href="/#programme">Soirée Gnawa Fusion</a></li>
+                        <li><a href="/#programme">Le Malade Imaginaire</a></li>
+                        <li><a href="/#programme">Tech Day : IA & Systèmes</a></li>
+                        <li><a href="/#programme">Concert Andalou</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Informations</h3>
+                    <ul>
+                        <li><a href="/#tarifs">Grille des tarifs</a></li>
+                        <li><a href="/tickets/my">Portefeuille de billets</a></li>
+                        <li><a href="/login">Accès administration</a></li>
+                        <li><a href="/login">Guichet & contrôle d'accès</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Légal</h3>
+                    <ul>
+                        <li><a href="#top">Conditions Générales de Vente</a></li>
+                        <li><a href="#top">Mentions Légales</a></li>
+                        <li><a href="#top">Accessibilité PMR</a></li>
+                        <li><a href="#top">Plan de salle officiel</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="foot-bottom">
+                <span>© 2026—2027 Théâtre Royal. Tous droits réservés.</span>
+                <span>Billetterie officielle certifiée · 400 places assises et debout</span>
+            </div>
+        </div>
+    </footer>
+
+    <div id="app-toast-region" class="app-toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="app-confirm-backdrop" class="app-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="app-confirm-title">
+        <div class="app-confirm-card">
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Confirmation requise</p>
+            <h2 id="app-confirm-title">Confirmer cette action</h2>
+            <p id="app-confirm-message"></p>
+            <div class="app-confirm-actions">
+                <button type="button" class="btn btn-ghost" id="app-confirm-cancel">Annuler</button>
+                <button type="button" class="btn danger" id="app-confirm-submit">Confirmer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAppToast(message, type = 'error', title = null) {
+            const region = document.getElementById('app-toast-region');
+            if (!region) return;
+
+            const toast = document.createElement('div');
+            toast.className = `app-toast ${type}`;
+            const heading = title || (type === 'success' ? 'Opération réussie' : 'Un problème est survenu');
+            toast.innerHTML = `
+                <div>
+                    <strong class="app-toast-title">${heading}</strong>
+                    <span class="app-toast-message"></span>
+                </div>
+                <button type="button" class="app-toast-close" aria-label="Fermer">×</button>
+            `;
+            toast.querySelector('.app-toast-message').textContent = message;
+            const close = () => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 180);
+            };
+            toast.querySelector('.app-toast-close').addEventListener('click', close);
+            region.appendChild(toast);
+            setTimeout(close, type === 'success' ? 3200 : 5200);
+        }
+
+        function showAppConfirm(message, options = {}) {
+            const backdrop = document.getElementById('app-confirm-backdrop');
+            const title = document.getElementById('app-confirm-title');
+            const messageEl = document.getElementById('app-confirm-message');
+            const cancel = document.getElementById('app-confirm-cancel');
+            const submit = document.getElementById('app-confirm-submit');
+            if (!backdrop || !title || !messageEl || !cancel || !submit) return Promise.resolve(false);
+
+            title.textContent = options.title || 'Confirmer cette action';
+            messageEl.textContent = message;
+            submit.textContent = options.confirmLabel || 'Confirmer';
+            submit.classList.toggle('danger', options.danger !== false);
+            backdrop.classList.remove('hidden');
+
+            return new Promise(resolve => {
+                const finish = (result) => {
+                    backdrop.classList.add('hidden');
+                    cancel.removeEventListener('click', onCancel);
+                    submit.removeEventListener('click', onSubmit);
+                    backdrop.removeEventListener('click', onBackdrop);
+                    resolve(result);
+                };
+                const onCancel = () => finish(false);
+                const onSubmit = () => finish(true);
+                const onBackdrop = (event) => {
+                    if (event.target === backdrop) finish(false);
+                };
+                cancel.addEventListener('click', onCancel);
+                submit.addEventListener('click', onSubmit);
+                backdrop.addEventListener('click', onBackdrop);
+                submit.focus();
+            });
+        }
+    </script>
+
+    <!-- Global Cart Script -->
+    <script>
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (e) {
+                window.location.reload();
+            }
+        }
+
+        async function updateCartHeader() {
+            try {
+                const res = await fetch('/api/cart');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const countBadge = document.getElementById('cart-count-badge');
+                const timerContainer = document.getElementById('cart-timer-container');
+                const timerDisplay = document.getElementById('cart-timer-display');
+
+                if (data.totalItems > 0) {
+                    countBadge.innerText = data.totalItems;
+                    const minTtl = Math.min(...data.items.map(i => i.ttl));
+                    if (minTtl > 0) {
+                        timerContainer.classList.remove('hidden');
+                        timerContainer.style.display = 'inline';
+                        const m = Math.floor(minTtl / 60).toString().padStart(2, '0');
+                        const s = (minTtl % 60).toString().padStart(2, '0');
+                        timerDisplay.innerText = `${m}:${s}`;
+                    }
+                } else {
+                    countBadge.innerText = '0';
+                    timerContainer.classList.add('hidden');
+                    timerContainer.style.display = 'none';
+                }
+            } catch (e) {
+                // quiet
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCartHeader();
+            setInterval(updateCartHeader, 10000);
+        });
+    </script>
+
+    {% block javascripts %}{% endblock %}
+</body>
 </html>

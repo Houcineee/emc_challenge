@@ -1,0 +1,403 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Règlement — Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .checkout-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: 56px;
+        align-items: start;
+        margin-top: 36px;
+    }
+    .panel-box {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+    }
+    .cart-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-block: 16px;
+        border-bottom: 1px solid var(--rule);
+        font-size: var(--t-5);
+    }
+    .cart-row:first-child { padding-top: 0; }
+    .cart-row:last-child { border-bottom: 0; }
+
+    @media (max-width: 960px) {
+        .checkout-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap" style="padding-top:48px;padding-bottom:96px;">
+
+    <!-- Header -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;">
+        <p class="meta" style="margin-bottom:8px;">
+            <a href="/#programme" style="border-bottom:1px solid var(--rule);padding-bottom:2px;">← Programmation</a>
+            &nbsp;·&nbsp;
+            <span>Finalisation</span>
+        </p>
+        <h1 class="display" style="font-size:var(--t-1);">
+            Règlement de votre commande
+        </h1>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="checkout-grid">
+        
+        <!-- Left: Cart Items & Promo -->
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:14px;margin-bottom:20px;">
+                <h2 class="display" style="font-size:var(--t-3);">Places sélectionnées</h2>
+                <span id="checkout-items-count" class="meta">Chargement...</span>
+            </div>
+
+            <!-- Items Container -->
+            <div id="checkout-cart-items">
+                <div style="text-align:center;padding:48px 0;color:var(--muted);font-size:var(--t-5);">
+                    Chargement de vos réservations...
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="checkout-empty-state" class="hidden panel-box" style="text-align:center;padding:48px 24px;">
+                <p style="color:var(--muted);font-size:var(--t-4);margin-bottom:24px;">
+                    Votre sélection est actuellement vide ou a expiré.
+                </p>
+                <a href="/#programme" class="btn btn-solid">
+                    Consulter le programme des spectacles
+                </a>
+            </div>
+
+            <!-- Promo Coupon -->
+            <div style="margin-top:40px;border-top:1px solid var(--rule);padding-top:28px;">
+                <label for="coupon-code-input" class="meta" style="display:block;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">
+                    Code Privilège ou Promotion
+                </label>
+                <div style="display:flex;gap:12px;max-width:440px;">
+                    <input type="text" id="coupon-code-input" placeholder="Ex: VIP20" style="flex:1;background:var(--ink-2);border:1px solid var(--rule);color:var(--cream);font-family:var(--sans);font-size:var(--t-5);padding:10px 16px;border-radius:999px;outline:none;text-transform:uppercase;">
+                    <button type="button" onclick="applyCoupon()" class="btn btn-ghost" style="height:42px;padding-inline:20px;">
+                        Appliquer
+                    </button>
+                </div>
+                <div id="coupon-status-banner" class="hidden" style="margin-top:12px;font-size:var(--t-5);padding:8px 14px;border-radius:4px;"></div>
+            </div>
+        </div>
+
+        <!-- Right: Summary Box -->
+        <div class="panel-box">
+            <h2 class="display" style="font-size:var(--t-3);border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                Récapitulatif
+            </h2>
+
+            <div style="display:grid;gap:14px;font-size:var(--t-5);">
+                <div style="display:flex;justify-content:space-between;color:var(--muted);">
+                    <span>Sous-total</span>
+                    <span id="summary-subtotal" style="color:var(--cream);font-weight:500;">0 MAD</span>
+                </div>
+
+                <div id="summary-discount-row" class="hidden" style="display:flex;justify-content:space-between;color:var(--crimson);">
+                    <span>Remise (<span id="discount-percent-label">0%</span>)</span>
+                    <span id="summary-discount-amount" style="font-weight:500;">-0 MAD</span>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:16px;margin-top:8px;">
+                    <span style="font-weight:500;">Total net</span>
+                    <span id="summary-total-net" class="display" style="font-size:1.6rem;">0 MAD</span>
+                </div>
+            </div>
+
+            <!-- Mode de règlement -->
+            <div style="margin-top:28px;border-top:1px solid var(--rule);padding-top:20px;">
+                <span class="meta" style="display:block;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">Mode de paiement</span>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <button type="button" onclick="selectPaymentMethod('CARD')" id="pm-card-btn" class="btn btn-solid" style="height:40px;font-size:0.75rem;">
+                        Carte Bancaire
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('CASH')" id="pm-cash-btn" class="btn btn-ghost" style="height:40px;font-size:0.75rem;">
+                        Au Guichet
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin-top:28px;">
+                <button type="button" id="pay-confirm-btn" onclick="executeCheckout()" class="btn btn-solid" style="width:100%;height:52px;font-size:var(--t-4);">
+                    <span id="pay-btn-spinner" class="hidden" style="width:14px;height:14px;border:2px solid var(--cream);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span>
+                    <span id="pay-btn-label">Confirmer et payer →</span>
+                </button>
+                <p class="meta" style="text-align:center;margin-top:12px;font-size:0.75rem;">
+                    Émission immédiate de vos billets officiels
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    let cartItems = [];
+    let currentEventId = null;
+    let appliedCoupon = null;
+    let paymentMethod = 'CARD';
+
+    async function loadCart() {
+        try {
+            const res = await fetch('/api/cart');
+            if (res.status === 401) {
+                renderUnauthenticated();
+                return;
+            }
+
+            const data = await res.json();
+            cartItems = data.items || [];
+
+            if (cartItems.length > 0) {
+                currentEventId = cartItems[0].eventId;
+            }
+
+            renderCart();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderUnauthenticated() {
+        const container = document.getElementById('checkout-cart-items');
+        container.innerHTML = `
+            <div class="panel-box" style="text-align:center;padding:48px 24px;">
+                <h3 class="display" style="font-size:var(--t-3);margin-bottom:8px;">Connexion requise</h3>
+                <p class="meta" style="margin-bottom:24px;">Veuillez vous connecter pour finaliser la commande de vos places.</p>
+                <a href="/login" class="btn btn-solid">Se connecter</a>
+            </div>
+        `;
+    }
+
+    function renderCart() {
+        const container = document.getElementById('checkout-cart-items');
+        const emptyState = document.getElementById('checkout-empty-state');
+        const countBadge = document.getElementById('checkout-items-count');
+        const payBtn = document.getElementById('pay-confirm-btn');
+
+        if (cartItems.length === 0) {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            countBadge.innerText = '0 place';
+            payBtn.disabled = true;
+            payBtn.style.opacity = '0.4';
+            payBtn.style.pointerEvents = 'none';
+            updateSummary(0);
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        container.classList.remove('hidden');
+        countBadge.innerText = `${cartItems.length} place${cartItems.length > 1 ? 's' : ''}`;
+        payBtn.disabled = false;
+        payBtn.style.opacity = '1';
+        payBtn.style.pointerEvents = 'auto';
+
+        let subtotalCents = 0;
+        let html = '';
+
+        cartItems.forEach(item => {
+            subtotalCents += item.priceCents;
+            const priceMad = Math.round(item.priceCents / 100);
+            const m = Math.floor(item.ttl / 60);
+            const s = (item.ttl % 60).toString().padStart(2, '0');
+
+            html += `
+                <div class="cart-row">
+                    <div>
+                        <div style="font-family:var(--display);font-size:1.1rem;color:var(--cream);">${item.eventTitle}</div>
+                        <div class="meta" style="margin-top:2px;">
+                            ${item.zone} &nbsp;·&nbsp; Rang ${item.row}, Place ${item.number}
+                        </div>
+                        <div class="meta" style="font-family:monospace;font-size:0.75rem;color:var(--crimson);margin-top:2px;">
+                            Réservée encore ${m}:${s}
+                        </div>
+                    </div>
+
+                    <div style="display:flex;align-items:baseline;gap:20px;">
+                        <span style="font-weight:500;font-size:1rem;color:var(--cream);">${priceMad} MAD</span>
+                        <button type="button" onclick="deleteItem(${item.eventId}, ${item.seatId})" class="meta" style="cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:1px;">
+                            Retirer
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        updateSummary(subtotalCents);
+    }
+
+    async function deleteItem(eventId, seatId) {
+        try {
+            const res = await fetch(`/api/events/${eventId}/hold/${seatId}`, { method: 'DELETE' });
+            if (res.ok) {
+                await loadCart();
+                if (typeof updateCartHeader === 'function') updateCartHeader();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function applyCoupon() {
+        const input = document.getElementById('coupon-code-input');
+        const banner = document.getElementById('coupon-status-banner');
+        const code = input.value.trim();
+
+        if (!code || !currentEventId) {
+            banner.style.background = 'rgba(179,18,31,0.2)';
+            banner.style.color = 'var(--cream)';
+            banner.innerText = 'Veuillez saisir un code privilège.';
+            banner.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/coupons/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId: currentEventId,
+                    code: code
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.valid) {
+                appliedCoupon = data;
+                banner.style.background = 'rgba(16,185,129,0.2)';
+                banner.style.color = 'var(--cream)';
+                banner.innerText = `Code ${data.code} appliqué (-${data.discountPercent}%).`;
+                banner.classList.remove('hidden');
+            } else {
+                appliedCoupon = null;
+                banner.style.background = 'rgba(179,18,31,0.2)';
+                banner.style.color = 'var(--cream)';
+                banner.innerText = data.error || 'Code invalide ou expiré.';
+                banner.classList.remove('hidden');
+            }
+
+            renderCart();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function updateSummary(subtotalCents) {
+        const subtotalMad = Math.round(subtotalCents / 100);
+        document.getElementById('summary-subtotal').innerText = `${subtotalMad} MAD`;
+
+        const discountRow = document.getElementById('summary-discount-row');
+        let finalCents = subtotalCents;
+
+        if (appliedCoupon && appliedCoupon.discountPercent > 0) {
+            discountRow.classList.remove('hidden');
+            document.getElementById('discount-percent-label').innerText = `-${appliedCoupon.discountPercent}%`;
+            const discountMad = Math.round(subtotalMad * (appliedCoupon.discountPercent / 100));
+            document.getElementById('summary-discount-amount').innerText = `-${discountMad} MAD`;
+            finalCents = Math.round(subtotalCents * ((100 - appliedCoupon.discountPercent) / 100));
+        } else {
+            discountRow.classList.add('hidden');
+        }
+
+        const totalNetMad = Math.round(finalCents / 100);
+        document.getElementById('summary-total-net').innerText = `${totalNetMad} MAD`;
+    }
+
+    function selectPaymentMethod(method) {
+        paymentMethod = method;
+        const cardBtn = document.getElementById('pm-card-btn');
+        const cashBtn = document.getElementById('pm-cash-btn');
+
+        if (method === 'CARD') {
+            cardBtn.className = 'btn btn-solid';
+            cardBtn.style.height = '40px';
+            cardBtn.style.fontSize = '0.75rem';
+            cashBtn.className = 'btn btn-ghost';
+            cashBtn.style.height = '40px';
+            cashBtn.style.fontSize = '0.75rem';
+        } else {
+            cashBtn.className = 'btn btn-solid';
+            cashBtn.style.height = '40px';
+            cashBtn.style.fontSize = '0.75rem';
+            cardBtn.className = 'btn btn-ghost';
+            cardBtn.style.height = '40px';
+            cardBtn.style.fontSize = '0.75rem';
+        }
+    }
+
+    async function executeCheckout() {
+        if (cartItems.length === 0) return;
+
+        const payBtn = document.getElementById('pay-confirm-btn');
+        const spinner = document.getElementById('pay-btn-spinner');
+        const label = document.getElementById('pay-btn-label');
+
+        payBtn.disabled = true;
+        spinner.classList.remove('hidden');
+        label.innerText = 'Confirmation en cours...';
+
+        const idempotencyKey = crypto.randomUUID();
+
+        const seatIds = cartItems.map(i => i.seatId);
+        const payload = {
+            eventId: currentEventId,
+            seatIds: seatIds,
+            couponCode: appliedCoupon ? appliedCoupon.code : null
+        };
+
+        try {
+            const res = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': idempotencyKey
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                window.location.href = '/tickets/my?success=1';
+            } else {
+                showAppToast(data.error || 'Erreur lors de la confirmation.');
+                payBtn.disabled = false;
+                spinner.classList.add('hidden');
+                label.innerText = 'Confirmer et payer →';
+            }
+        } catch (e) {
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
+            payBtn.disabled = false;
+            spinner.classList.add('hidden');
+            label.innerText = 'Confirmer et payer →';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCart();
+        setInterval(loadCart, 10000);
+    });
+</script>
+{% endblock %}

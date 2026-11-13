@@ -1,0 +1,249 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Guichet — Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .panel-box {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+    }
+
+    .cashier-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: 40px;
+        align-items: start;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--t-5);
+        color: var(--muted);
+        border: 1px solid var(--rule);
+        padding: 6px 14px;
+        border-radius: 999px;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+    }
+
+    .cashier-event-item {
+        border: 1px solid var(--rule);
+        background: var(--ink);
+        border-radius: 4px;
+        padding: 18px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    .cashier-event-item:last-child {
+        margin-bottom: 0;
+    }
+
+    @media (max-width: 960px) {
+        .cashier-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap" style="padding-top:48px;padding-bottom:96px;">
+
+    {% if not isAuthorized %}
+    <div class="panel-box" style="max-width:520px;margin:48px auto;text-align:center;padding:48px 32px;">
+        <p class="meta" style="text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Guichet & Portes</p>
+        <h1 class="display" style="font-size:var(--t-2);margin-bottom:12px;">Espace Réservé au Guichet</h1>
+        <p class="meta" style="margin-bottom:28px;">
+            Cet espace de vente au comptoir et de contrôle des entrées requiert le rôle Guichetier ou Administrateur.
+        </p>
+        <div>
+            <a href="/login" class="btn btn-solid">
+                Se connecter
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Header -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:40px;">
+        <div>
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Guichet & Portes</p>
+            <h1 class="display" style="font-size:var(--t-1);">Contrôle d'Accès & Point de Vente</h1>
+        </div>
+
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            <span style="font-family:monospace;">Système actif</span>
+        </div>
+    </div>
+
+    <!-- Workspace -->
+    <div class="cashier-grid">
+        
+        <!-- Left: Ticket Verification -->
+        <div>
+            <div class="panel-box">
+                <div style="border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                    <h2 class="display" style="font-size:var(--t-3);margin-bottom:6px;">Vérification de Billet</h2>
+                    <p class="meta">
+                        Saisissez ou scannez le code d'accès du billet (format <code>EMC-{id}-{id}</code>).
+                    </p>
+                </div>
+
+                <form onsubmit="handleVerifyTicket(event)" style="margin-bottom:24px;">
+                    <div style="display:flex;gap:10px;margin-bottom:16px;">
+                        <input type="text" id="qr-input" autofocus placeholder="EMC-1-1" style="flex:1;background:var(--ink);border:1px solid var(--rule);color:var(--cream);font-family:monospace;font-size:var(--t-4);padding:12px 16px;border-radius:4px;outline:none;transition:border-color .2s;">
+                        <button type="submit" class="btn btn-solid" style="height:46px;padding-inline:24px;">
+                            Vérifier
+                        </button>
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:10px;font-size:var(--t-5);color:var(--muted);flex-wrap:wrap;">
+                        <span>Exemples de test :</span>
+                        <button type="button" onclick="fillAndVerify('EMC-1-1')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-1-1</button>
+                        <span>·</span>
+                        <button type="button" onclick="fillAndVerify('EMC-1-2')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-1-2</button>
+                        <span>·</span>
+                        <button type="button" onclick="fillAndVerify('EMC-99-99')" style="font-family:monospace;color:var(--cream);border-bottom:1px dashed var(--rule);padding-bottom:1px;cursor:pointer;">EMC-99-99</button>
+                    </div>
+                </form>
+
+                <!-- Result Box -->
+                <div id="verification-result-box" class="hidden"></div>
+            </div>
+        </div>
+
+        <!-- Right: Vente Express Comptoir -->
+        <div>
+            <div class="panel-box">
+                <div style="border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                    <h2 class="display" style="font-size:var(--t-3);margin-bottom:6px;">Vente au Comptoir</h2>
+                    <p class="meta">
+                        Sélectionnez un spectacle pour ouvrir la salle 3D et émettre un billet physique :
+                    </p>
+                </div>
+
+                <div>
+                    {% for ev in events %}
+                    <div class="cashier-event-item">
+                        <div>
+                            <div class="display" style="font-size:var(--t-4);font-weight:500;">{{ ev.title }}</div>
+                            <div style="font-family:monospace;font-size:var(--t-5);color:var(--muted);margin-top:2px;">
+                                {{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}
+                            </div>
+                            <div style="font-size:var(--t-5);color:var(--crimson);font-weight:500;margin-top:4px;">
+                                Dès {{ (ev.basePriceCents / 100)|number_format(0) }} MAD
+                            </div>
+                        </div>
+
+                        <a href="/events/{{ ev.id }}" class="btn btn-ghost" style="height:36px;padding-inline:16px;">
+                            Ouvrir
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center;padding:36px;color:var(--muted);font-size:var(--t-5);">
+                        Aucun spectacle programmé.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    function fillAndVerify(code) {
+        document.getElementById('qr-input').value = code;
+        handleVerifyTicket(new Event('submit'));
+    }
+
+    async function handleVerifyTicket(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const input = document.getElementById('qr-input');
+        const code = input.value.trim();
+        const box = document.getElementById('verification-result-box');
+
+        if (!code) return;
+
+        box.style.display = 'block';
+        box.classList.remove('hidden');
+        box.setAttribute('style', 'display:block;border:1px solid var(--rule);background:rgba(243,234,219,0.03);border-radius:4px;padding:20px;text-align:center;color:var(--muted);font-size:var(--t-5);');
+        box.innerText = 'Vérification en cours...';
+
+        try {
+            const res = await fetch('/api/cashier/verify-ticket', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qrPayload: code })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.valid && data.status === 'PAID') {
+                const t = data.ticket;
+                box.setAttribute('style', 'display:block;border:1px solid rgba(52,211,153,0.4);background:rgba(52,211,153,0.06);border-radius:4px;padding:24px;');
+                box.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(52,211,153,0.25);padding-bottom:14px;margin-bottom:18px;">
+                        <span class="display" style="font-size:var(--t-3);color:#34d399;font-weight:500;">Accès Autorisé</span>
+                        <span style="font-family:monospace;font-size:0.75rem;text-transform:uppercase;color:#34d399;border:1px solid rgba(52,211,153,0.4);padding:3px 10px;border-radius:999px;">Billet Valide</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:var(--t-5);">
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Spectacle</span>
+                            <span style="color:var(--cream);font-weight:500;">${t.eventTitle}</span>
+                        </div>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Emplacement</span>
+                            <span style="color:var(--cream);font-weight:500;">${t.zoneName} — Rang ${t.seatRow}, Place ${t.seatNumber}</span>
+                        </div>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Titulaire</span>
+                            <span style="color:var(--muted);">${t.buyerEmail}</span>
+                        </div>
+                        <div>
+                            <span class="meta" style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Montant</span>
+                            <span style="font-family:monospace;color:var(--cream);font-weight:500;">${Math.round(t.finalPriceCents / 100)} MAD</span>
+                        </div>
+                    </div>
+                `;
+            } else if (data.status === 'REFUNDED') {
+                box.setAttribute('style', 'display:block;border:1px solid rgba(179,18,31,0.5);background:rgba(179,18,31,0.08);border-radius:4px;padding:24px;');
+                box.innerHTML = `
+                    <div class="display" style="font-size:var(--t-3);color:var(--crimson);margin-bottom:6px;">Accès Refusé</div>
+                    <div style="color:var(--muted);font-size:var(--t-5);">${data.message || 'Ce billet a été remboursé.'}</div>
+                `;
+            } else {
+                box.setAttribute('style', 'display:block;border:1px solid var(--rule);background:rgba(243,234,219,0.04);border-radius:4px;padding:24px;');
+                box.innerHTML = `
+                    <div class="display" style="font-size:var(--t-3);color:var(--cream);margin-bottom:6px;">Billet Non Trouvé</div>
+                    <div style="color:var(--muted);font-size:var(--t-5);">${data.error || 'Aucun billet correspondant trouvé.'}</div>
+                `;
+            }
+        } catch (err) {
+            box.setAttribute('style', 'display:block;border:1px solid rgba(179,18,31,0.5);background:rgba(179,18,31,0.08);border-radius:4px;padding:20px;color:var(--crimson);font-size:var(--t-5);');
+            box.innerText = 'Erreur réseau lors de la vérification.';
+        }
+    }
+</script>
+{% endblock %}

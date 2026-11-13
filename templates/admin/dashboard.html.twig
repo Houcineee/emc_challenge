@@ -1,0 +1,562 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Direction — Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .panel-box {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .kpi-card {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: var(--t-5);
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .kpi-card .kpi-val {
+        font-family: var(--display);
+        font-size: 2rem;
+        line-height: 1.15;
+        color: var(--cream);
+        margin-top: 8px;
+        margin-bottom: 4px;
+    }
+
+    .kpi-card .kpi-note {
+        font-size: var(--t-5);
+        color: var(--muted);
+    }
+
+    .kpi-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(243, 234, 219, 0.1);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+
+    .kpi-fill {
+        height: 100%;
+        background: var(--crimson);
+        border-radius: 999px;
+    }
+
+    .opera-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: var(--t-5);
+    }
+
+    .opera-table th {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--rule);
+        font-weight: 500;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+    }
+
+    .opera-table td {
+        padding: 16px 14px;
+        border-bottom: 1px solid var(--rule);
+        color: var(--cream);
+        vertical-align: middle;
+    }
+
+    .opera-table tr:hover td {
+        background: rgba(243, 234, 219, 0.02);
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(12, 10, 11, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .modal-backdrop.hidden {
+        display: none !important;
+    }
+
+    .modal-card {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+        width: 100%;
+        max-width: 520px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: var(--t-5);
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+
+    .form-control {
+        width: 100%;
+        background: var(--ink);
+        border: 1px solid var(--rule);
+        color: var(--cream);
+        font-family: var(--sans);
+        font-size: var(--t-5);
+        padding: 10px 14px;
+        border-radius: 4px;
+        outline: none;
+        transition: border-color .2s;
+    }
+
+    .form-control:focus {
+        border-color: var(--cream);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    @media (max-width: 960px) {
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 600px) {
+        .kpi-grid { grid-template-columns: 1fr; }
+        .form-row { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap" style="padding-top:48px;padding-bottom:96px;">
+
+    {% if not isAdmin %}
+    <div class="panel-box" style="max-width:520px;margin:48px auto;text-align:center;padding:48px 32px;">
+        <p class="meta" style="text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Direction du Théâtre</p>
+        <h1 class="display" style="font-size:var(--t-2);margin-bottom:12px;">Espace d'Administration</h1>
+        <p class="meta" style="margin-bottom:28px;">
+            Cet espace de gestion financière et opérationnelle requiert les privilèges Administrateur.
+        </p>
+        <div>
+            <a href="/login" class="btn btn-solid">
+                Se connecter avec un compte habilité
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Header -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px;margin-bottom:40px;">
+        <div>
+            <p class="meta" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Direction · Pilotage</p>
+            <h1 class="display" style="font-size:var(--t-1);">Tableau de Bord</h1>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button type="button" onclick="openCreateEventModal()" class="btn btn-ghost" style="height:42px;padding-inline:20px;">
+                Nouveau Spectacle
+            </button>
+            <button type="button" onclick="openCreateCouponModal()" class="btn btn-solid" style="height:42px;padding-inline:20px;">
+                Créer un Coupon
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">Recettes Encaissées</span>
+            <div class="kpi-val" style="font-family:monospace;font-weight:600;">
+                {{ totalRevenueMad|number_format(0, ',', ' ') }} MAD
+            </div>
+            <div class="kpi-note" style="font-family:monospace;">
+                Total des ventes payées
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-label">Billets Émis</span>
+            <div class="kpi-val">
+                {{ totalTicketsSold }}
+            </div>
+            <div class="kpi-note" style="color:#34d399;">
+                Confirmés en base
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-label">Taux d'Occupation</span>
+            <div class="kpi-val">
+                {{ globalOccupancyPercent }}%
+            </div>
+            <div class="kpi-bar">
+                <div class="kpi-fill" style="width: {{ globalOccupancyPercent }}%;"></div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-label">Capacité Salle</span>
+            <div class="kpi-val">
+                400 Places
+            </div>
+            <div class="kpi-note">
+                5 Zones configurables
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Performance Table -->
+    <div class="panel-box" style="margin-bottom:40px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:20px;">
+            <h2 class="display" style="font-size:var(--t-3);">Programmation & Ventes</h2>
+            <span class="meta">{{ events|length }} spectacles</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="opera-table">
+                <thead>
+                    <tr>
+                        <th>Spectacle</th>
+                        <th>Genre</th>
+                        <th>Date</th>
+                        <th>Ventes</th>
+                        <th>Recettes</th>
+                        <th>Statut</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in events %}
+                    {% set ev = item.entity %}
+                    <tr>
+                        <td style="font-weight:500;">
+                            {{ ev.title }}
+                        </td>
+                        <td style="color:var(--muted);">
+                            {{ ev.eventType ? ev.eventType.name : '' }}
+                        </td>
+                        <td style="font-family:monospace;color:var(--muted);">
+                            {{ ev.startsAt ? ev.startsAt|date('d/m/Y H:i') : '' }}
+                        </td>
+                        <td>
+                            <span style="font-family:monospace;color:var(--cream);">{{ item.soldSeats }}</span>
+                            <span style="color:var(--muted);">/{{ item.totalSeats }}</span>
+                            <span style="color:var(--muted);font-family:monospace;margin-left:4px;">({{ item.occupancyPercent }}%)</span>
+                        </td>
+                        <td style="font-family:monospace;color:var(--cream);">
+                            {{ item.revenueMad|number_format(0, ',', ' ') }} MAD
+                        </td>
+                        <td>
+                            {% if ev.status.value == 'SCHEDULED' %}
+                                <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;color:#34d399;">
+                                    <span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;"></span>
+                                    Programmé
+                                </span>
+                            {% else %}
+                                <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--crimson);">
+                                    <span style="width:6px;height:6px;border-radius:50%;background:var(--crimson);display:inline-block;"></span>
+                                    Annulé
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;white-space:nowrap;">
+                            <a href="/events/{{ ev.id }}" class="btn btn-ghost" style="height:30px;padding-inline:12px;font-size:0.75rem;">
+                                Salle 3D
+                            </a>
+                            {% if ev.status.value == 'SCHEDULED' %}
+                            <button type="button" onclick="cancelEvent({{ ev.id }}, '{{ ev.title|e('js') }}')" class="btn btn-ghost" style="height:30px;padding-inline:12px;font-size:0.75rem;color:var(--crimson);border-color:rgba(179,18,31,0.4);margin-left:6px;">
+                                Annuler
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Coupons Table -->
+    <div class="panel-box">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:20px;">
+            <h2 class="display" style="font-size:var(--t-3);">Codes Promotionnels</h2>
+            <span class="meta">{{ coupons|length }} actifs</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="opera-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Spectacle</th>
+                        <th>Remise</th>
+                        <th>Utilisations</th>
+                        <th>Validité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in coupons %}
+                    {% set c = item.entity %}
+                    <tr>
+                        <td>
+                            <code style="font-family:monospace;font-weight:600;color:var(--cream);letter-spacing:0.05em;padding:2px 8px;background:rgba(243,234,219,0.06);border:1px solid var(--rule);border-radius:2px;">{{ c.code }}</code>
+                        </td>
+                        <td style="color:var(--cream);">
+                            {{ c.event ? c.event.title : 'Tous les spectacles' }}
+                        </td>
+                        <td style="color:#34d399;font-weight:500;">
+                            -{{ c.discountPercent }}%
+                        </td>
+                        <td style="font-family:monospace;color:var(--muted);">
+                            {{ item.usedCount }} / {{ c.maxUses ? c.maxUses : 'Illimité' }}
+                        </td>
+                        <td style="font-family:monospace;color:var(--muted);">
+                            {{ c.validUntil ? c.validUntil|date('d/m/Y') : 'Permanent' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="padding:36px;text-align:center;color:var(--muted);">
+                            Aucun coupon configuré.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal: Nouveau Spectacle -->
+    <div id="create-event-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                <h3 class="display" style="font-size:var(--t-3);">Nouveau Spectacle</h3>
+                <button type="button" onclick="closeCreateEventModal()" style="font-size:1.2rem;color:var(--muted);cursor:pointer;line-height:1;">✕</button>
+            </div>
+
+            <form id="create-event-form" onsubmit="submitCreateEvent(event)">
+                <div class="form-group">
+                    <label for="ev-title">Titre *</label>
+                    <input type="text" id="ev-title" required class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="ev-desc">Description</label>
+                    <textarea id="ev-desc" rows="3" class="form-control" style="resize:vertical;"></textarea>
+                </div>
+                <div class="form-row form-group">
+                    <div>
+                        <label for="ev-type">Genre *</label>
+                        <select id="ev-type" required class="form-control">
+                            {% for et in eventTypes %}
+                                <option value="{{ et.id }}">{{ et.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="ev-price">Prix de base (MAD) *</label>
+                        <input type="number" id="ev-price" required min="10" value="150" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ev-date">Date et heure *</label>
+                    <input type="datetime-local" id="ev-date" required class="form-control">
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid var(--rule);">
+                    <button type="button" onclick="closeCreateEventModal()" class="btn btn-ghost" style="height:38px;padding-inline:18px;">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-solid" style="height:38px;padding-inline:22px;">
+                        Créer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Nouveau Coupon -->
+    <div id="create-coupon-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:24px;">
+                <h3 class="display" style="font-size:var(--t-3);">Nouveau Coupon</h3>
+                <button type="button" onclick="closeCreateCouponModal()" style="font-size:1.2rem;color:var(--muted);cursor:pointer;line-height:1;">✕</button>
+            </div>
+
+            <form id="create-coupon-form" onsubmit="submitCreateCoupon(event)">
+                <div class="form-group">
+                    <label for="cp-code">Code promo *</label>
+                    <input type="text" id="cp-code" required class="form-control" style="text-transform:uppercase;font-family:monospace;letter-spacing:0.05em;">
+                </div>
+                <div class="form-group">
+                    <label for="cp-event">Spectacle rattaché *</label>
+                    <select id="cp-event" required class="form-control">
+                        {% for item in events %}
+                            <option value="{{ item.entity.id }}">{{ item.entity.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row form-group">
+                    <div>
+                        <label for="cp-discount">Remise (%) *</label>
+                        <input type="number" id="cp-discount" required min="1" max="100" value="20" class="form-control">
+                    </div>
+                    <div>
+                        <label for="cp-max">Max utilisations</label>
+                        <input type="number" id="cp-max" min="1" placeholder="Illimité" class="form-control">
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid var(--rule);">
+                    <button type="button" onclick="closeCreateCouponModal()" class="btn btn-ghost" style="height:38px;padding-inline:18px;">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-solid" style="height:38px;padding-inline:22px;">
+                        Créer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    function openCreateEventModal() {
+        document.getElementById('create-event-modal').classList.remove('hidden');
+    }
+    function closeCreateEventModal() {
+        document.getElementById('create-event-modal').classList.add('hidden');
+    }
+    function openCreateCouponModal() {
+        document.getElementById('create-coupon-modal').classList.remove('hidden');
+    }
+    function closeCreateCouponModal() {
+        document.getElementById('create-coupon-modal').classList.add('hidden');
+    }
+
+    async function submitCreateEvent(e) {
+        e.preventDefault();
+        const payload = {
+            title: document.getElementById('ev-title').value,
+            description: document.getElementById('ev-desc').value,
+            eventTypeId: parseInt(document.getElementById('ev-type').value, 10),
+            basePriceCents: parseInt(document.getElementById('ev-price').value, 10) * 100,
+            startsAt: new Date(document.getElementById('ev-date').value).toISOString()
+        };
+
+        try {
+            const res = await fetch('/api/admin/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAppToast('Le spectacle a été ajouté au programme.', 'success', 'Spectacle créé');
+                setTimeout(() => window.location.reload(), 850);
+            } else {
+                showAppToast(data.error || 'Erreur lors de la création.');
+            }
+        } catch (err) {
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
+        }
+    }
+
+    async function submitCreateCoupon(e) {
+        e.preventDefault();
+        const maxUsesVal = document.getElementById('cp-max').value;
+        const payload = {
+            code: document.getElementById('cp-code').value.toUpperCase().trim(),
+            eventId: parseInt(document.getElementById('cp-event').value, 10),
+            discountPercent: parseInt(document.getElementById('cp-discount').value, 10),
+            maxUses: (maxUsesVal && parseInt(maxUsesVal, 10) > 0) ? parseInt(maxUsesVal, 10) : 1000
+        };
+
+        try {
+            const res = await fetch('/api/admin/coupons', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAppToast('Le coupon est maintenant disponible pour la billetterie.', 'success', 'Coupon créé');
+                setTimeout(() => window.location.reload(), 850);
+            } else {
+                showAppToast(data.error || 'Erreur lors de la création.');
+            }
+        } catch (err) {
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
+        }
+    }
+
+    async function cancelEvent(eventId, eventTitle) {
+        const confirmed = await showAppConfirm(
+            `Les billets vendus passeront automatiquement en statut remboursé.`,
+            {
+                title: `Annuler « ${eventTitle} » ?`,
+                confirmLabel: 'Annuler le spectacle'
+            }
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/events/${eventId}/cancel`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showAppToast(`${data.refundedTicketsCount} billet(s) passé(s) en remboursement.`, 'success', 'Spectacle annulé');
+                setTimeout(() => window.location.reload(), 850);
+            } else {
+                showAppToast(data.error || 'Erreur lors de l\'annulation.');
+            }
+        } catch (err) {
+            showAppToast('Erreur réseau. Vérifiez votre connexion puis réessayez.');
+        }
+    }
+</script>
+{% endblock %}

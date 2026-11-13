@@ -81,9 +81,9 @@ class Coupon
         return $this->maxUses;
     }
 
-    public function setMaxUses(int $maxUses): static
+    public function setMaxUses(?int $maxUses): static
     {
-        $this->maxUses = $maxUses;
+        $this->maxUses = $maxUses ?? 1000;
 
         return $this;
     }

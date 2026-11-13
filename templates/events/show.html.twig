@@ -1,0 +1,254 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ event.title }} — Plan de Salle 3D | Théâtre Royal{% endblock %}
+
+{% block stylesheets %}
+<style>
+    #theater-canvas-container {
+        position: relative;
+        width: 100%;
+        height: 680px;
+        background: radial-gradient(circle at center, #141113 0%, var(--ink) 100%);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #theater-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    #seat-tooltip {
+        pointer-events: none;
+        transition: opacity 0.15s ease-out;
+        z-index: 30;
+    }
+
+    .booking-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+        gap: 40px;
+        align-items: start;
+        margin-top: 36px;
+    }
+
+    .panel-box {
+        background: var(--ink-2);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 32px 28px;
+    }
+
+    .seat-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-block: 14px;
+        border-bottom: 1px solid var(--rule);
+        font-size: var(--t-5);
+    }
+    .seat-item:first-child { padding-top: 0; }
+    .seat-item:last-child { border-bottom: 0; }
+
+    .view-btn.active-view {
+        border-color: var(--amber) !important;
+        color: var(--amber) !important;
+        box-shadow: 0 0 10px rgba(229, 169, 60, 0.25);
+    }
+
+    @media (max-width: 960px) {
+        .booking-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap" style="padding-top:48px;padding-bottom:80px;">
+
+    <!-- Top Breadcrumb / Title -->
+    <div style="border-bottom:1px solid var(--rule);padding-bottom:28px;">
+        <p class="meta" style="margin-bottom:12px;">
+            <a href="/#programme" style="border-bottom:1px solid var(--rule);padding-bottom:2px;">← Retour au programme</a>
+            &nbsp;·&nbsp;
+            <span>{{ event.startsAt ? event.startsAt|date('l d F Y à H:i') : '' }}</span>
+            &nbsp;·&nbsp;
+            <strong>{{ isFrontStageStanding ? 'Fosse Debout' : 'Places Assises' }}</strong>
+        </p>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+            <h1 class="display" style="font-size:var(--t-1);line-height:1.05;">
+                {{ event.title }}
+            </h1>
+            <div style="text-align:right;">
+                <span class="meta" style="display:block;">Tarif de départ</span>
+                <span class="display" style="font-size:var(--t-3);">{{ startingPriceMad }} MAD</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="booking-grid">
+        
+        <!-- 3D Canvas Viewport -->
+        <div>
+            <div id="theater-canvas-container">
+                <canvas id="theater-canvas" data-event-id="{{ event.id }}" data-is-standing="{{ isFrontStageStanding ? 'true' : 'false' }}"></canvas>
+
+                <!-- Camera Controls & Zone Focus Toolbar -->
+                <div style="position:absolute;top:16px;left:16px;z-index:20;display:flex;flex-direction:column;gap:8px;max-width:calc(100% - 32px);">
+                    <!-- Perspectives générales -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                        <button type="button" onclick="setCameraPreset('panoramic')" class="btn btn-ghost view-btn active-view" data-view="panoramic" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Vue Achat
+                        </button>
+                        <button type="button" onclick="setCameraPreset('top')" class="btn btn-ghost view-btn" data-view="top" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Plan 2D
+                        </button>
+                        <button type="button" onclick="setCameraPreset('scene')" class="btn btn-ghost view-btn" data-view="scene" style="height:32px;padding-inline:12px;background:rgba(12,10,11,0.88);border:1px solid var(--rule);font-size:0.75rem;color:var(--cream);">
+                            Vue Scène
+                        </button>
+                    </div>
+
+                    <!-- Zoom direct par zone pour choix précis -->
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:rgba(12,10,11,0.88);border:1px solid var(--rule);border-radius:6px;padding:3px 6px;">
+                        <span style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding-inline:4px;">Zone :</span>
+                        <button type="button" onclick="setCameraPreset('orchestra')" class="btn btn-ghost view-btn" data-view="orchestra" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Orchestre
+                        </button>
+                        <button type="button" onclick="setCameraPreset('front_stage')" class="btn btn-ghost view-btn" data-view="front_stage" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Avant-Scène
+                        </button>
+                        <button type="button" onclick="setCameraPreset('balcony')" class="btn btn-ghost view-btn" data-view="balcony" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Balcon
+                        </button>
+                        <button type="button" onclick="setCameraPreset('left_box')" class="btn btn-ghost view-btn" data-view="left_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Loges G.
+                        </button>
+                        <button type="button" onclick="setCameraPreset('right_box')" class="btn btn-ghost view-btn" data-view="right_box" style="height:26px;padding-inline:8px;font-size:0.70rem;border-radius:4px;color:var(--cream);">
+                            Loges D.
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Zone banner — shown on seat hover -->
+                <div id="zone-banner" style="position:absolute;top:16px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:22;background:rgba(12,10,11,0.85);border:1px solid var(--rule);padding:6px 18px;border-radius:999px;font-size:0.75rem;color:var(--cream);letter-spacing:0.04em;opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;pointer-events:none;"></div>
+
+                <!-- Minimalist Legend -->
+                <div style="position:absolute;bottom:16px;left:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;display:flex;gap:20px;font-size:0.75rem;color:var(--muted);">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#850d18;border:1px solid rgba(255,255,255,0.2);"></span>
+                        <span>Disponible</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#e5a93c;"></span>
+                        <span>Sélectionné</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#262024;border:1px solid rgba(255,255,255,0.15);"></span>
+                        <span>Occupé</span>
+                    </div>
+                </div>
+
+                <!-- Interaction hint — dismissed on first interaction -->
+                <div id="interaction-hint" style="position:absolute;bottom:16px;right:16px;z-index:20;background:rgba(12,10,11,0.88);border:1px solid var(--rule);padding:8px 16px;border-radius:999px;font-size:0.72rem;color:var(--muted);white-space:nowrap;transition:opacity 0.4s ease,transform 0.4s ease;pointer-events:none;">
+                    🖱 Cliquez pour choisir · Glissez pour pivoter · Zoom molette
+                </div>
+
+                <!-- Hover Tooltip -->
+                <div id="seat-tooltip" style="position:absolute;display:none;background:var(--ink-2);border:1px solid var(--rule);padding:10px 14px;border-radius:4px;font-size:0.75rem;color:var(--cream);box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+                    <div id="tooltip-seat-name" style="font-family:var(--display);font-size:0.95rem;font-weight:500;">Rang A — N° 01</div>
+                    <div id="tooltip-seat-zone" style="color:var(--muted);font-size:0.75rem;">Orchestre</div>
+                    <div style="display:flex;justify-content:space-between;gap:16px;margin-top:4px;">
+                        <span id="tooltip-seat-price" style="font-weight:600;color:var(--cream);">225 MAD</span>
+                        <span id="tooltip-seat-status" style="color:var(--muted);">Disponible</span>
+                    </div>
+                </div>
+
+                <!-- Loader -->
+                <div id="canvas-loader" style="position:absolute;inset:0;z-index:30;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .3s;">
+                    <div style="width:28px;height:28px;border:2px solid var(--rule);border-top-color:var(--crimson);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <span class="meta">Chargement de la salle en 3D...</span>
+                </div>
+            </div>
+
+            <!-- Toast Container -->
+            <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+        </div>
+
+        <!-- Right Side Panel -->
+        <div style="display:flex;flex-direction:column;gap:32px;">
+
+            <!-- Selections Card -->
+            <div class="panel-box">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:20px;">
+                    <h2 class="display" style="font-size:var(--t-3);">Vos Places</h2>
+                    <span id="held-count-badge" class="meta">0 place</span>
+                </div>
+
+                <!-- List of reserved seats -->
+                <div id="held-seats-list" style="max-height:260px;overflow-y:auto;padding-right:4px;">
+                    <div style="text-align:center;padding:36px 0;color:var(--muted);font-size:var(--t-5);">
+                        Cliquez sur une place libre dans la salle pour l'ajouter à votre sélection.
+                    </div>
+                </div>
+
+                <!-- Subtotal and Action -->
+                <div style="border-top:1px solid var(--rule);padding-top:20px;margin-top:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
+                        <span class="meta">Total de la sélection</span>
+                        <span id="held-total-price" class="display" style="font-size:1.5rem;">0 MAD</span>
+                    </div>
+
+                    <a href="/checkout" id="checkout-cta-button" class="btn btn-solid" style="width:100%;opacity:0.4;pointer-events:none;">
+                        Confirmer et régler mes places →
+                    </a>
+
+                    <p class="meta" style="text-align:center;margin-top:12px;font-size:0.75rem;">
+                        Places réservées pendant 15 minutes
+                    </p>
+                </div>
+            </div>
+
+            <!-- Pricing Breakdown -->
+            <div class="panel-box" style="padding:24px 28px;">
+                <h3 class="meta" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">
+                    Grille des tarifs
+                </h3>
+                <ul style="display:grid;gap:12px;font-size:var(--t-5);">
+                    {% for item in zonePricing %}
+                    <li style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:10px;">
+                        <span style="color:var(--muted);">
+                            {% if item.zone.name.value == 'FRONT_STAGE' %}
+                                Avant-Scène {{ item.isSeated ? '(Assis)' : '(Debout)' }}
+                            {% elseif item.zone.name.value == 'ORCHESTRA' %}
+                                Orchestre Prestige
+                            {% elseif item.zone.name.value == 'LEFT_BOX' %}
+                                Loge Privée Gauche
+                            {% elseif item.zone.name.value == 'RIGHT_BOX' %}
+                                Loge Privée Droite
+                            {% else %}
+                                Balcon & Galerie
+                            {% endif %}
+                        </span>
+                        <span style="color:var(--cream);font-weight:500;">{{ item.priceMad }} MAD</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="/js/theater-3d.js?v=2.1"></script>
+{% endblock %}

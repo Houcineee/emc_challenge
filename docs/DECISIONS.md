@@ -82,3 +82,22 @@ Format : date, contexte, options, choix, conséquence.
 **Choix.** Option 2.
 
 **Conséquence.** L'historique des ventes reste auditable. Aucune nouvelle réservation n'est acceptée pour un événement annulé.
+
+---
+
+## 2026-11-11 - D6 : Architecture Front-End & Rendu Spatial 3D (Three.js) sans dépendance Node.js
+
+**Contexte.** Le Niveau 3 ("En faire un produit") exige une expérience utilisateur raffinée, une visualisation spatiale fidèle des 400 places modulables (fosse debout pour les concerts vs sièges pour le théâtre), et une simplicité d'exécution absolue pour les évaluateurs (Niveau 5).
+
+**Options.**
+1. Développer une SPA React ou Vue avec outillage npm/Vite lourd nécessitant une compilation front-end distincte.
+2. Architecture Twig Server-Driven avec Vanilla JavaScript moderne, Three.js r128 chargé via CDN, Tailwind CSS et composant de rendu procédural WebGL.
+
+**Choix.** Option 2.
+
+**Conséquence.**
+- Zéro étape de build Node.js : `docker compose up -d` suffit pour faire tourner 100% de la stack sans installer npm sur la machine hôte.
+- Fluidité WebGL 60fps : rendu 3D procédural précis de la salle (scène avec proscénium, orchestre incurvé à 8 rangées, loges privées suspendues, balcon haut et fosse dynamique adaptative).
+- Intégration native avec les sessions Symfony et mise à disposition d'une barre de démonstration 1-clic pour changer de rôle (`ADMIN`, `CASHIER`, `CLIENT`) instantanément.
+- Sécurisation des transactions via génération de clés d'idempotence UUID v4 et minuteurs de compte à rebours synchronisés avec le TTL Redis (15 minutes).
+
