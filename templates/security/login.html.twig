@@ -44,24 +44,6 @@
                 </div>
             </form>
 
-            <!-- Quick evaluation access -->
-            <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--rule);">
-                <p class="meta" style="text-align:center;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;font-size:0.7rem;">
-                    Comptes de démonstration (Accès direct)
-                </p>
-                <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;">
-                    <button type="button" onclick="quickLoginAndRedirect('ADMIN', '/admin')" class="btn btn-ghost" style="height:36px;font-size:0.75rem;padding-inline:8px;">
-                        Direction
-                    </button>
-                    <button type="button" onclick="quickLoginAndRedirect('CASHIER', '/cashier')" class="btn btn-ghost" style="height:36px;font-size:0.75rem;padding-inline:8px;">
-                        Guichet
-                    </button>
-                    <button type="button" onclick="quickLoginAndRedirect('CLIENT', '/')" class="btn btn-ghost" style="height:36px;font-size:0.75rem;padding-inline:8px;">
-                        Spectateur
-                    </button>
-                </div>
-            </div>
-
         </div>
 
         <p class="meta" style="text-align:center;margin-top:24px;">
@@ -74,24 +56,6 @@
 
 {% block javascripts %}
 <script>
-    async function quickLoginAndRedirect(role, redirectUrl) {
-        try {
-            const res = await fetch('/api/auth/quick-login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: role })
-            });
-            if (res.ok) {
-                window.location.href = redirectUrl;
-            } else {
-                const data = await res.json();
-                showAppToast(data.error || 'Erreur lors de la connexion.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('email').value;

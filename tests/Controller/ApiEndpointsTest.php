@@ -15,6 +15,26 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class ApiEndpointsTest extends WebTestCase
 {
+    private function loginAs(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $role): void
+    {
+        $credentials = [
+            'ADMIN' => ['email' => 'admin@theatre.ma', 'password' => 'Admin123!'],
+            'CASHIER' => ['email' => 'guichet@theatre.ma', 'password' => 'Guichet123!'],
+            'CLIENT' => ['email' => 'alice@client.ma', 'password' => 'Client123!'],
+        ];
+
+        $this->assertArrayHasKey($role, $credentials);
+        $client->request(
+            'POST',
+            '/api/auth/login',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode($credentials[$role], JSON_THROW_ON_ERROR)
+        );
+        $this->assertResponseIsSuccessful();
+    }
+
     private function clearRedisHolds(): void
     {
         $container = static::getContainer();
@@ -91,15 +111,7 @@ class ApiEndpointsTest extends WebTestCase
         $this->clearRedisHolds();
 
         // 1. Quick Login as CLIENT
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CLIENT'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CLIENT');
         $loginData = json_decode($client->getResponse()->getContent(), true);
         $this->assertSame('CLIENT', $loginData['user']['role']);
 
@@ -171,15 +183,7 @@ class ApiEndpointsTest extends WebTestCase
         $client = static::createClient();
 
         // 1. Quick Login as ADMIN
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'ADMIN'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'ADMIN');
 
         // 2. Request dashboard stats
         $client->request('GET', '/api/admin/dashboard');
@@ -197,15 +201,7 @@ class ApiEndpointsTest extends WebTestCase
         $client = static::createClient();
 
         // 1. Quick Login as ADMIN
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'ADMIN'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'ADMIN');
 
         // Get an active event
         $client->request('GET', '/api/events');
@@ -257,15 +253,7 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertContains($testCode, $codes);
 
         // 5. Client role cannot create coupon -> 403 Forbidden
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CLIENT'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CLIENT');
 
         $client->request(
             'POST',
@@ -287,15 +275,7 @@ class ApiEndpointsTest extends WebTestCase
         $client = static::createClient();
 
         // 1. Quick Login as CLIENT
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CLIENT'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CLIENT');
 
         // 2. Fetch my tickets
         $client->request('GET', '/api/tickets/my');
@@ -320,15 +300,7 @@ class ApiEndpointsTest extends WebTestCase
         $client = static::createClient();
 
         // 1. Quick Login as ADMIN
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'ADMIN'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'ADMIN');
 
         // 2. Create Event
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -357,15 +329,7 @@ class ApiEndpointsTest extends WebTestCase
         $this->assertSame('SCHEDULED', $data['event']['status']);
 
         // 3. Client cannot create event -> 403 Forbidden
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CLIENT'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CLIENT');
 
         $client->request(
             'POST',
@@ -388,15 +352,7 @@ class ApiEndpointsTest extends WebTestCase
         $client = static::createClient();
 
         // 1. Quick Login as CASHIER
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CASHIER'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CASHIER');
 
         // 2. Verify a PAID ticket
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -454,15 +410,7 @@ class ApiEndpointsTest extends WebTestCase
         $this->clearRedisHolds();
 
         // 1. Quick Login as CLIENT
-        $client->request(
-            'POST',
-            '/api/auth/quick-login',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['role' => 'CLIENT'])
-        );
-        $this->assertResponseIsSuccessful();
+        $this->loginAs($client, 'CLIENT');
 
         // 2. Find available seat on an active event
         $client->request('GET', '/api/events');

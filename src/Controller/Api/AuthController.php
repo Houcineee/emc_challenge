@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Entity\User;
-use App\Enum\UserRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -43,42 +42,6 @@ class AuthController extends AbstractController
         $user = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($user === null || !$this->passwordHasher->isPasswordValid($user, $password)) {
             return new JsonResponse(['error' => 'Identifiants invalides.'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $this->security->login($user);
-
-        return new JsonResponse([
-            'user' => [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'role' => $user->getRole()?->value,
-            ],
-        ], Response::HTTP_OK);
-    }
-
-    #[Route('/quick-login', name: 'quick_login', methods: ['POST'])]
-    public function quickLogin(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        if (!is_array($data)) {
-            return new JsonResponse(['error' => 'Corps de requête JSON invalide.'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $roleInput = strtoupper(trim((string) ($data['role'] ?? '')));
-
-        try {
-            $userRole = UserRole::from($roleInput);
-        } catch (\ValueError) {
-            return new JsonResponse([
-                'error' => 'Rôle invalide. Rôles autorisés : ADMIN, CASHIER, CLIENT.',
-            ], Response::HTTP_BAD_REQUEST);
-        }
-
-        $user = $this->em->getRepository(User::class)->findOneBy(['role' => $userRole]);
-        if ($user === null) {
-            return new JsonResponse([
-                'error' => sprintf('Aucun utilisateur trouvé pour le rôle %s.', $userRole->value),
-            ], Response::HTTP_NOT_FOUND);
         }
 
         $this->security->login($user);
