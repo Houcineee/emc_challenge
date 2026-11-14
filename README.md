@@ -60,7 +60,16 @@ Les ventes sont enregistrées dans un outbox transactionnel avec les actions `SO
 La commande `app:sync-google-sheets` lit les messages non traités et les ajoute automatiquement dans
 un onglet `Ventes`. Une erreur est journalisée et le message reste non traité pour la prochaine exécution.
 
-Configuration locale, sans committer de secret :
+### Configuration initiale
+
+1. Dans Google Cloud Console, créez un projet ou sélectionnez un projet existant.
+2. Activez **Google Sheets API** et **Google Drive API** dans **APIs & Services > Library**.
+3. Dans **IAM & Admin > Service Accounts**, créez un compte de service.
+4. Dans l'onglet **Keys** de ce compte, choisissez **Add key > Create new key > JSON**.
+5. Placez le fichier téléchargé dans `var/secrets/google-service-account.json`.
+6. Ne commitez jamais ce fichier et ne partagez jamais sa clé privée.
+
+Configuration locale dans `.env.local`, sans committer de secret :
 
 ```dotenv
 GOOGLE_SERVICE_ACCOUNT_JSON=/app/var/secrets/google-service-account.json
@@ -68,9 +77,27 @@ GOOGLE_SHEETS_TITLE="Théâtre Royal — Ventes"
 GOOGLE_SHEETS_DIRECTOR_EMAIL=direction@example.com
 ```
 
-Le compte de service doit avoir accès aux APIs Google Sheets et Drive. Le premier traitement crée la
-feuille, ajoute les colonnes, puis la partage avec l'adresse de la direction. Pour une exécution
-automatique, planifier la commande toutes les minutes :
+Le premier traitement qui suit une vente crée la feuille, ajoute les colonnes, puis la partage avec
+l'adresse de la direction. La feuille créée est visible dans **Google Drive > Shared with me** du
+compte configuré dans `GOOGLE_SHEETS_DIRECTOR_EMAIL`.
+
+### Vérification manuelle
+
+1. Achetez un billet depuis l'application.
+2. Exécutez :
+
+   ```bash
+   docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+   ```
+
+3. Ouvrez Google Drive avec l'adresse configurée et recherchez le titre de la feuille.
+4. Vérifiez l'onglet `Ventes` et la ligne de vente.
+
+Pour donner l'accès à d'autres personnes, ouvrez la feuille, cliquez sur **Share**, ajoutez leurs
+adresses Google, puis choisissez `Viewer`, `Commenter` ou `Editor`. Elles n'ont pas besoin d'accéder
+au projet Google Cloud.
+
+Pour une exécution automatique, planifier la commande toutes les minutes :
 
 ```cron
 * * * * * docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
