@@ -23,6 +23,7 @@ class TicketingService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly SeatHoldService $seatHoldService,
+        private readonly SalesOutboxService $salesOutboxService,
     ) {
     }
 
@@ -114,6 +115,10 @@ class TicketingService
 
             $this->em->flush();
 
+            foreach ($tickets as $ticket) {
+                $this->salesOutboxService->recordTicketSold($ticket);
+            }
+
             return $tickets;
         });
 
@@ -140,6 +145,7 @@ class TicketingService
 
             foreach ($tickets as $ticket) {
                 $ticket->setStatus(TicketStatus::REFUNDED);
+                $this->salesOutboxService->recordTicketRefunded($ticket);
             }
 
             $this->em->flush();

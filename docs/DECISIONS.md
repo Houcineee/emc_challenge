@@ -101,3 +101,52 @@ Format : date, contexte, options, choix, conséquence.
 - Intégration native avec les sessions Symfony et mise à disposition d'une barre de démonstration 1-clic pour changer de rôle (`ADMIN`, `CASHIER`, `CLIENT`) instantanément.
 - Sécurisation des transactions via génération de clés d'idempotence UUID v4 et minuteurs de compte à rebours synchronisés avec le TTL Redis (15 minutes).
 
+## 2026-11-14 - D7 : Synchronisation Google Sheets par outbox transactionnel
+
+**Contexte.** Le Niveau 4 exige que les ventes soient synchronisées automatiquement dans une feuille
+Google Sheets partagée avec la direction, sans bloquer ni perdre une vente si Google est indisponible.
+
+**Options.**
+1. Écrire directement dans Google Sheets pendant la transaction d'achat.
+2. Enregistrer la vente et un message d'outbox dans la même transaction MySQL, puis synchroniser les
+   messages en arrière-plan.
+
+**Choix.** Option 2, avec un historique append-only : une ligne `SOLD` à la vente et une ligne
+`REFUNDED` en cas de remboursement. La base de données reste la source de vérité.
+
+**Conséquence.** Une panne Google ne fait pas échouer l'achat. Les messages non traités restent dans
+`outbox_messages` et sont retentés automatiquement lors de l'exécution suivante. Les lignes déjà
+traitées ne sont jamais ajoutées deux fois.
+
+## 2026-11-14 - D8 : Compte de service et feuille Google préexistante
+
+**Contexte.** Un compte de service Google nouvellement créé peut avoir un quota Drive nul et ne peut
+donc pas créer de fichier, même si les APIs Google Sheets et Drive sont activées.
+
+**Options.**
+1. Demander un compte Google Workspace ou un quota Drive permettant la création automatique.
+2. Configurer l'identifiant d'une feuille existante via une variable d'environnement et donner au
+compte de service le rôle `Editor`.
+
+**Choix.** Option 2 pour conserver un workflow simple avec un compte Gmail personnel :
+`GOOGLE_SHEETS_ID` contient l'identifiant de la feuille existante.
+
+**Conséquence.** L'application prépare l'onglet `Ventes`, ajoute les en-têtes et synchronise les
+ventes dans cette feuille. Aucun identifiant de feuille ni secret n'est codé dans le dépôt.
+
+## 2026-11-14 - D9 : Déclenchement local automatique par service Docker
+
+**Contexte.** Les évaluateurs doivent pouvoir tester la synchronisation sans configurer manuellement
+un cron sur leur machine.
+
+**Options.**
+1. Demander à chaque évaluateur d'installer une tâche cron sur son hôte.
+2. Ajouter un service `scheduler` à Docker Compose qui exécute la commande de synchronisation chaque
+minute et redémarre automatiquement.
+
+**Choix.** Option 2.
+
+**Conséquence.** `docker compose up -d` démarre l'application, la base, Redis et le scheduler.
+Le scheduler lance `app:sync-google-sheets` toutes les minutes. La même approche fonctionne dans
+un environnement hébergeant des services Docker persistants.
+

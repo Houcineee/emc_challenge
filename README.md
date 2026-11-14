@@ -9,7 +9,7 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
 | 1 | Modéliser | Fait |
 | 2 | Faire respecter les règles | Fait |
 | 3 | En faire un produit | Fait |
-| 4 | API externe (Google Sheets) | À faire |
+| 4 | API externe (Google Sheets) | Implémentation prête à configurer |
 | 5 | Livrer (Docker, INSTALL.md) | En cours |
 
 ## Lancer le projet
@@ -53,4 +53,79 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
   - Barre d'évaluation supérieure permettant de basculer instantanément entre les profils `ADMIN`, `CASHIER` et `CLIENT`.
   - **Dashboard Administrateur (`/admin`)** : Chiffre d'affaires en MAD, taux d'occupation par spectacle, création de spectacles/coupons et annulation avec remboursement en cascade.
   - **Guichet POS & Contrôle d'Accès (`/cashier`)** : Simulateur de scanner de QR code en direct vérifiant la validité des billets à l'entrée de la salle.
+
+## Synchronisation Google Sheets (Niveau 4)
+
+Les ventes sont enregistrées dans un outbox transactionnel avec les actions `SOLD` et `REFUNDED`.
+La commande `app:sync-google-sheets` lit les messages non traités et les ajoute automatiquement dans
+un onglet `Ventes`. Une erreur est journalisée et le message reste non traité pour la prochaine exécution.
+
+### Configuration initiale
+
+1. Dans Google Cloud Console, créez un projet ou sélectionnez un projet existant.
+2. Activez **Google Sheets API** et **Google Drive API** dans **APIs & Services > Library**.
+3. Dans **IAM & Admin > Service Accounts**, créez un compte de service.
+4. Dans l'onglet **Keys** de ce compte, choisissez **Add key > Create new key > JSON**.
+5. Placez le fichier téléchargé dans `var/secrets/google-service-account.json`.
+6. Ne commitez jamais ce fichier et ne partagez jamais sa clé privée.
+
+Configuration locale dans `.env.local`, sans committer de secret :
+
+```dotenv
+GOOGLE_SERVICE_ACCOUNT_JSON=/app/var/secrets/google-service-account.json
+GOOGLE_SHEETS_ID=your_existing_spreadsheet_id
+GOOGLE_SHEETS_TITLE="Théâtre Royal — Ventes"
+GOOGLE_SHEETS_DIRECTOR_EMAIL=direction@example.com
+```
+
+Si `GOOGLE_SHEETS_ID` est configuré, l'application utilise cette feuille existante et prépare
+l'onglet `Ventes`. Le compte de service doit avoir le rôle **Editor** sur cette feuille. Si l'ID n'est
+pas configuré, le premier traitement qui suit une vente tente de créer automatiquement une nouvelle
+feuille et de la partager avec `GOOGLE_SHEETS_DIRECTOR_EMAIL`.
+
+### Vérification manuelle
+
+1. Achetez un billet depuis l'application.
+2. Exécutez :
+
+   ```bash
+   docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+   ```
+
+3. Ouvrez Google Drive avec l'adresse configurée et recherchez le titre de la feuille.
+4. Vérifiez l'onglet `Ventes` et la ligne de vente.
+
+Pour donner l'accès à d'autres personnes, ouvrez la feuille, cliquez sur **Share**, ajoutez leurs
+adresses Google, puis choisissez `Viewer`, `Commenter` ou `Editor`. Elles n'ont pas besoin d'accéder
+au projet Google Cloud.
+
+Pour une exécution automatique, planifier la commande toutes les minutes :
+
+```cron
+* * * * * docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+```
+
+En local avec Docker Compose, le service `scheduler` lance automatiquement cette synchronisation
+toutes les minutes. Il suffit de démarrer la stack :
+
+```bash
+docker compose up -d
+docker compose logs -f scheduler
+```
+
+La ligne cron ci-dessus reste utile pour un déploiement VPS sans service Docker dédié.
+
+### Dépannage
+
+Si la commande affiche une erreur `Google Sheets API has not been used in project ... or it is
+disabled`, activez **Google Sheets API** dans le projet Google Cloud associé au fichier JSON du
+compte de service. Activez également **Google Drive API** dans ce même projet, puis attendez quelques
+minutes avant de relancer la commande.
+
+Les messages en échec restent non traités dans l'outbox et sont automatiquement retentés lors de la
+prochaine exécution :
+
+```bash
+docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+```
 

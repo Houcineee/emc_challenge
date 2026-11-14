@@ -10,9 +10,9 @@ Ce document synthétise l'état exact du projet pour permettre à tout agent ou 
 |---|---|---|---|
 | **1** | **Modéliser** | **FAIT** | 4 Enums, 8 Entités Doctrine (3NF), Migration appliquée, 400 sièges et données de démo chargées. |
 | **2** | **Faire respecter les règles** | **FAIT** | Verrou temporaire 15 min (Redis), service de billetterie transactionnel MySQL, idempotence stricte au paiement (`Idempotency-Key`), API REST complète (19 routes), 21 tests automatisés PHPUnit (125 assertions, 100% au vert). |
-| **3** | **En faire un produit** | **EN COURS** | Plan de salle 3D Three.js procédural interactif, parcours d'achat complet, billet QR code, interfaces guichet et admin. |
-| **4** | **API externe (Google Sheets)** | **À FAIRE** | Synchronisation des ventes et remplissage vers Google Sheets. |
-| **5** | **Livrer (Docker, INSTALL.md)** | **À FAIRE** | Finalisation du packaging Docker et documentation d'installation. |
+| **3** | **En faire un produit** | **FAIT** | Plan de salle 3D Three.js procédural interactif, parcours d'achat complet, billet QR code, interfaces guichet et admin. |
+| **4** | **API externe (Google Sheets)** | **FAIT** | Outbox transactionnel, synchronisation append-only, feuille configurée par variable d'environnement et reprise automatique des échecs. |
+| **5** | **Livrer (Docker, INSTALL.md)** | **EN COURS** | Stack Docker et scheduler local opérationnels, documentation README disponible ; packaging final et guide INSTALL.md restent à finaliser. |
 
 ---
 
@@ -78,16 +78,9 @@ docker exec emc_app php bin/phpunit
 
 ---
 
-## 6. Prochaine étape : Niveau 2 (Faire respecter les règles)
+## 6. Prochaine étape : finaliser le Niveau 5 (Livrer)
 
-Pour démarrer le Niveau 2 lors de la prochaine session :
-1. **Ajouter le conteneur Redis** dans `docker-compose.yml` (`image: redis:7-alpine`, port `6379:6379`) pour gérer les verrous temporaires de 15 minutes et l'idempotence.
-2. **Créer le service de hold (`src/Service/SeatHoldService.php`)** :
-   - Commande atomique : `SET hold:event:{id}:seat:{id} {userId} NX EX 900`.
-   - Vérification de quota : max 6 places en attente de paiement par client.
-3. **Créer le service d'achat (`src/Service/TicketingService.php`)** :
-   - Transaction MySQL avec gestion de coupon et insertion du ticket `PAID`.
-   - Annulation d'événement : passage des tickets à `REFUNDED` et libération des holds.
-4. **Écrire les tests automatisés dans `tests/`** :
-   - Tests unitaires des calculs de prix et règles métiers.
-   - Tests de concurrence (tentatives d'achat simultané sur le même siège).
+Pour finaliser le Niveau 5 :
+1. Finaliser le guide d'installation dédié si nécessaire.
+2. Vérifier le déploiement complet de la stack Docker sur l'environnement cible.
+3. Documenter les variables secrètes et la stratégie de lancement du scheduler en production.
