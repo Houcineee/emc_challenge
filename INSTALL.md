@@ -22,8 +22,9 @@ The installer:
 
 1. Creates `.env.local` from `.env.example` if it does not exist.
 2. Builds and starts PHP/Symfony, MySQL, Redis, and the scheduler.
-3. Applies Doctrine migrations.
-4. Loads the demonstration data.
+3. Installs PHP dependencies inside the app container.
+4. Applies Doctrine migrations.
+5. Loads the demonstration data.
 
 Open the application at <http://localhost:8000>.
 
