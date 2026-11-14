@@ -133,7 +133,8 @@ class ApiEndpointsTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/pdf');
-        $this->assertStringStartsWith('%PDF', $client->getResponse()->getContent());
+        $pdf = $client->getResponse()->getContent();
+        $this->assertStringStartsWith('%PDF', $pdf);
         $this->assertStringContainsString('attachment', (string) $client->getResponse()->headers->get('content-disposition'));
 
         $otherUser = $em->getRepository(User::class)->findOneBy(['email' => 'bob@client.ma']);
@@ -144,6 +145,32 @@ class ApiEndpointsTest extends WebTestCase
             $client->request('GET', sprintf('/tickets/%d/download', $otherTicket->getId()));
             $this->assertResponseStatusCodeSame(404);
         }
+    }
+
+    public function testCashierRejectsQrCodeForAnotherEvent(): void
+    {
+        $client = static::createClient();
+        $this->loginAs($client, 'CASHIER');
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $ticket = $em->getRepository(Ticket::class)->findOneBy(['status' => TicketStatus::PAID]);
+        $this->assertNotNull($ticket);
+
+        $wrongEventId = $ticket->getEvent()->getId() + 100000;
+        $client->request(
+            'POST',
+            '/api/cashier/verify-ticket',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'qrPayload' => sprintf('EMC-%d-%d', $wrongEventId, $ticket->getId()),
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        $this->assertResponseStatusCodeSame(400);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertFalse($data['valid']);
     }
 
     public function testGetEventSeatsStructureForThreeJs(): void

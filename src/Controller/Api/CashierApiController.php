@@ -36,11 +36,14 @@ class CashierApiController extends AbstractController
         }
 
         $ticketId = 0;
+        $eventIdFromQr = null;
         $qrPayload = trim((string) ($data['qrPayload'] ?? ''));
 
         if ($qrPayload !== '') {
             // Support format EMC-{eventId}-{ticketId} or raw ticketId
             if (preg_match('/^EMC-\d+-(\d+)$/', $qrPayload, $matches)) {
+                preg_match('/^EMC-(\d+)-\d+$/', $qrPayload, $eventMatches);
+                $eventIdFromQr = (int) $eventMatches[1];
                 $ticketId = (int) $matches[1];
             } elseif (ctype_digit($qrPayload)) {
                 $ticketId = (int) $qrPayload;
@@ -62,6 +65,13 @@ class CashierApiController extends AbstractController
                 'valid' => false,
                 'error' => 'Billet introuvable dans le système.',
             ], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($eventIdFromQr !== null && $ticket->getEvent()?->getId() !== $eventIdFromQr) {
+            return new JsonResponse([
+                'valid' => false,
+                'error' => 'Le QR code ne correspond pas à ce billet.',
+            ], Response::HTTP_BAD_REQUEST);
         }
 
         $event = $ticket->getEvent();

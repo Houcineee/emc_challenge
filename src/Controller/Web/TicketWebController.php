@@ -102,6 +102,7 @@ class TicketWebController extends AbstractController
             backgroundColor: new Color(255, 255, 255),
         );
         $qrSvg = (new SvgWriter())->write($qrCode)->getString();
+        $qrDataUri = 'data:image/svg+xml;base64,'.base64_encode($qrSvg);
 
         $options = new Options();
         $options->setDefaultFont('DejaVu Sans');
@@ -113,7 +114,7 @@ class TicketWebController extends AbstractController
             'event' => $event,
             'seat' => $seat,
             'canonicalCode' => $canonicalCode,
-            'qrSvg' => $qrSvg,
+            'qrDataUri' => $qrDataUri,
         ]));
         $dompdf->setPaper('A4');
         $dompdf->render();
