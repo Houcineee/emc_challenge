@@ -28,7 +28,11 @@ services:
       - ./:/app
     env_file:
       - .env.local
-    command: sh -c 'while true; do php bin/console app:sync-google-sheets --no-interaction; sleep 60; done'
+    command: >-
+      sh -c 'while true; do if [ -n "$${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ] &&
+      [ -n "$${GOOGLE_SHEETS_ID:-}" ]; then php bin/console app:sync-google-sheets
+      --no-interaction; else echo "Google Sheets scheduler idle: configure
+      GOOGLE_SERVICE_ACCOUNT_JSON and GOOGLE_SHEETS_ID."; fi; sleep 60; done'
     depends_on:
       mysql:
         condition: service_healthy

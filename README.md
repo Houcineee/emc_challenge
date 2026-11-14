@@ -9,10 +9,19 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
 | 1 | Modéliser | Fait |
 | 2 | Faire respecter les règles | Fait |
 | 3 | En faire un produit | Fait |
-| 4 | API externe (Google Sheets) | Implémentation prête à configurer |
-| 5 | Livrer (Docker, INSTALL.md) | En cours |
+| 4 | API externe (Google Sheets) | Fait |
+| 5 | Livrer (Docker, INSTALL.md) | Fait |
 
 ## Lancer le projet
+
+Installation complète en une commande :
+
+```bash
+chmod +x bin/install && ./bin/install
+```
+
+Le détail de l'installation, les comptes de démonstration et le dépannage sont dans
+[`INSTALL.md`](INSTALL.md).
 
 1. **Démarrer les conteneurs (PHP 8.2, MySQL 8.0 & Redis 7)** :
    ```bash
