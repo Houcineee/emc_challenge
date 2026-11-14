@@ -130,7 +130,12 @@
 
                     <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px;">
                         <span>Titulaire : {{ ticket.user.email }}</span>
-                        <span style="font-family:monospace;">#{{ canonicalCode }}</span>
+                        <span style="display:flex;align-items:center;gap:12px;">
+                            <a href="{{ path('web_ticket_download', {id: ticket.id}) }}" class="btn btn-ghost no-print" style="height:30px;padding-inline:10px;font-size:0.7rem;">
+                                Télécharger PDF
+                            </a>
+                            <span style="font-family:monospace;">#{{ canonicalCode }}</span>
+                        </span>
                     </div>
                 </div>
 

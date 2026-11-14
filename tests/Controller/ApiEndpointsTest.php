@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Entity\Event;
 use App\Entity\Seat;
 use App\Entity\Ticket;
+use App\Entity\User;
 use App\Enum\EventStatus;
 use App\Enum\TicketStatus;
 use Doctrine\ORM\EntityManagerInterface;
@@ -114,6 +115,35 @@ class ApiEndpointsTest extends WebTestCase
             'CONTENT_TYPE' => 'application/json',
         ], json_encode(['qrPayload' => 'EMC-1-1'], JSON_THROW_ON_ERROR));
         $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testClientCanDownloadOnlyTheirPaidTicketAsPdf(): void
+    {
+        $client = static::createClient();
+        $this->loginAs($client, 'CLIENT');
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $alice = $em->getRepository(User::class)->findOneBy(['email' => 'alice@client.ma']);
+        $this->assertNotNull($alice);
+
+        $ownedTicket = $em->getRepository(Ticket::class)->findOneBy(['user' => $alice, 'status' => TicketStatus::PAID]);
+        $this->assertNotNull($ownedTicket);
+
+        $client->request('GET', sprintf('/tickets/%d/download', $ownedTicket->getId()));
+
+        $this->assertResponseIsSuccessful();
+        $this->assertResponseHeaderSame('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $client->getResponse()->getContent());
+        $this->assertStringContainsString('attachment', (string) $client->getResponse()->headers->get('content-disposition'));
+
+        $otherUser = $em->getRepository(User::class)->findOneBy(['email' => 'bob@client.ma']);
+        $this->assertNotNull($otherUser);
+        $otherTicket = $em->getRepository(Ticket::class)->findOneBy(['user' => $otherUser, 'status' => TicketStatus::PAID]);
+
+        if ($otherTicket !== null) {
+            $client->request('GET', sprintf('/tickets/%d/download', $otherTicket->getId()));
+            $this->assertResponseStatusCodeSame(404);
+        }
     }
 
     public function testGetEventSeatsStructureForThreeJs(): void
