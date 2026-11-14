@@ -73,13 +73,15 @@ Configuration locale dans `.env.local`, sans committer de secret :
 
 ```dotenv
 GOOGLE_SERVICE_ACCOUNT_JSON=/app/var/secrets/google-service-account.json
+GOOGLE_SHEETS_ID=your_existing_spreadsheet_id
 GOOGLE_SHEETS_TITLE="Théâtre Royal — Ventes"
 GOOGLE_SHEETS_DIRECTOR_EMAIL=direction@example.com
 ```
 
-Le premier traitement qui suit une vente crée la feuille, ajoute les colonnes, puis la partage avec
-l'adresse de la direction. La feuille créée est visible dans **Google Drive > Shared with me** du
-compte configuré dans `GOOGLE_SHEETS_DIRECTOR_EMAIL`.
+Si `GOOGLE_SHEETS_ID` est configuré, l'application utilise cette feuille existante et prépare
+l'onglet `Ventes`. Le compte de service doit avoir le rôle **Editor** sur cette feuille. Si l'ID n'est
+pas configuré, le premier traitement qui suit une vente tente de créer automatiquement une nouvelle
+feuille et de la partager avec `GOOGLE_SHEETS_DIRECTOR_EMAIL`.
 
 ### Vérification manuelle
 

@@ -43,24 +43,27 @@ class GoogleSheetsSyncService
 
         $payload = $message->getPayload();
         $row = [[
-            $payload['ticketId'] ?? null,
-            $payload['eventId'] ?? null,
-            $payload['eventTitle'] ?? null,
-            $payload['eventStartsAt'] ?? null,
-            $payload['seat'] ?? null,
-            $payload['zone'] ?? null,
-            $payload['customerEmail'] ?? null,
-            isset($payload['amountCents']) ? $payload['amountCents'] / 100 : null,
-            $payload['coupon'] ?? null,
-            $payload['action'] ?? null,
+            $payload['ticketId'] ?? '',
+            $payload['eventId'] ?? '',
+            $payload['eventTitle'] ?? '',
+            $payload['eventStartsAt'] ?? '',
+            $payload['seat'] ?? '',
+            $payload['zone'] ?? '',
+            $payload['customerEmail'] ?? '',
+            isset($payload['amountCents']) ? $payload['amountCents'] / 100 : '',
+            $payload['coupon'] ?? '',
+            $payload['action'] ?? '',
             $eventId,
-            $payload['occurredAt'] ?? null,
+            $payload['occurredAt'] ?? '',
         ]];
+
+        $values = new ValueRange();
+        $values->setValues($row);
 
         $sheets->spreadsheets_values->append(
             $spreadsheetId,
             self::TAB_NAME.'!A:L',
-            new ValueRange(['values' => $row]),
+            $values,
             [
                 'valueInputOption' => 'RAW',
                 'insertDataOption' => 'INSERT_ROWS',
@@ -93,6 +96,18 @@ class GoogleSheetsSyncService
             return (string) $configuration->getSpreadsheetId();
         }
 
+        $configuredSpreadsheetId = trim((string) ($_ENV['GOOGLE_SHEETS_ID'] ?? getenv('GOOGLE_SHEETS_ID') ?: ''));
+        if ($configuredSpreadsheetId !== '') {
+            $spreadsheetUrl = 'https://docs.google.com/spreadsheets/d/'.$configuredSpreadsheetId.'/edit';
+            $this->initializeSpreadsheet(new Sheets($client), $configuredSpreadsheetId);
+
+            $configuration = new GoogleSheetConfiguration($configuredSpreadsheetId, $spreadsheetUrl);
+            $this->em->persist($configuration);
+            $this->em->flush();
+
+            return $configuredSpreadsheetId;
+        }
+
         $title = trim((string) ($_ENV['GOOGLE_SHEETS_TITLE'] ?? getenv('GOOGLE_SHEETS_TITLE') ?: ''));
         if ($title === '') {
             throw new \RuntimeException('GOOGLE_SHEETS_TITLE must be configured.');
@@ -104,40 +119,7 @@ class GoogleSheetsSyncService
             ['fields' => 'spreadsheetId,spreadsheetUrl'],
         );
         $spreadsheetId = (string) $spreadsheet->getSpreadsheetId();
-
-        $sheets->spreadsheets->batchUpdate($spreadsheetId, new BatchUpdateSpreadsheetRequest([
-            'requests' => [
-                new SheetsRequest([
-                    'updateSheetProperties' => [
-                        'properties' => [
-                            'sheetId' => 0,
-                            'title' => self::TAB_NAME,
-                        ],
-                        'fields' => 'title',
-                    ],
-                ]),
-            ],
-        ]));
-
-        $sheets->spreadsheets_values->update(
-            $spreadsheetId,
-            self::TAB_NAME.'!A1:L1',
-            new ValueRange(['values' => [[
-                'Ticket ID',
-                'Event ID',
-                'Event',
-                'Event date',
-                'Seat',
-                'Zone',
-                'Customer email',
-                'Amount (MAD)',
-                'Coupon',
-                'Action',
-                'Outbox event ID',
-                'Occurred at',
-            ]]]),
-            ['valueInputOption' => 'RAW'],
-        );
+        $this->initializeSpreadsheet($sheets, $spreadsheetId);
 
         $directorEmail = trim((string) ($_ENV['GOOGLE_SHEETS_DIRECTOR_EMAIL'] ?? getenv('GOOGLE_SHEETS_DIRECTOR_EMAIL') ?: ''));
         if ($directorEmail !== '') {
@@ -165,5 +147,45 @@ class GoogleSheetsSyncService
         ]);
 
         return $spreadsheetId;
+    }
+
+    private function initializeSpreadsheet(Sheets $sheets, string $spreadsheetId): void
+    {
+        $sheets->spreadsheets->batchUpdate($spreadsheetId, new BatchUpdateSpreadsheetRequest([
+            'requests' => [
+                new SheetsRequest([
+                    'updateSheetProperties' => [
+                        'properties' => [
+                            'sheetId' => 0,
+                            'title' => self::TAB_NAME,
+                        ],
+                        'fields' => 'title',
+                    ],
+                ]),
+            ],
+        ]));
+
+        $headers = new ValueRange();
+        $headers->setValues([[
+            'Ticket ID',
+            'Event ID',
+            'Event',
+            'Event date',
+            'Seat',
+            'Zone',
+            'Customer email',
+            'Amount (MAD)',
+            'Coupon',
+            'Action',
+            'Outbox event ID',
+            'Occurred at',
+        ]]);
+
+        $sheets->spreadsheets_values->update(
+            $spreadsheetId,
+            self::TAB_NAME.'!A1:L1',
+            $headers,
+            ['valueInputOption' => 'RAW'],
+        );
     }
 }
