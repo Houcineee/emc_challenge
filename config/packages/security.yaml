@@ -33,8 +33,25 @@ security:
 
     # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        # Authentication endpoints and public event browsing remain accessible.
+        - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/events(?:/\d+)?(?:/seats)?$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/coupons/validate$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/venue/seats$, roles: PUBLIC_ACCESS }
+        - { path: ^/login$, roles: PUBLIC_ACCESS }
+
+        # Administrative and cashier areas are restricted by role.
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
+        - { path: ^/admin, roles: ROLE_ADMIN }
+        - { path: ^/api/cashier, roles: [ROLE_CASHIER, ROLE_ADMIN] }
+        - { path: ^/cashier, roles: [ROLE_CASHIER, ROLE_ADMIN] }
+
+        # Customer actions require an authenticated session.
+        - { path: ^/api/events/\d+/hold(?:/\d+)?$, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/(?:cart|checkout|tickets), roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/checkout$, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/tickets/my$, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/auth/(?:me|logout)$, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:
