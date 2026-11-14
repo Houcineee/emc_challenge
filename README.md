@@ -103,3 +103,17 @@ Pour une exécution automatique, planifier la commande toutes les minutes :
 * * * * * docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
 ```
 
+### Dépannage
+
+Si la commande affiche une erreur `Google Sheets API has not been used in project ... or it is
+disabled`, activez **Google Sheets API** dans le projet Google Cloud associé au fichier JSON du
+compte de service. Activez également **Google Drive API** dans ce même projet, puis attendez quelques
+minutes avant de relancer la commande.
+
+Les messages en échec restent non traités dans l'outbox et sont automatiquement retentés lors de la
+prochaine exécution :
+
+```bash
+docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+```
+
