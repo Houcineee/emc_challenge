@@ -9,7 +9,7 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
 | 1 | Modéliser | Fait |
 | 2 | Faire respecter les règles | Fait |
 | 3 | En faire un produit | Fait |
-| 4 | API externe (Google Sheets) | À faire |
+| 4 | API externe (Google Sheets) | Implémentation prête à configurer |
 | 5 | Livrer (Docker, INSTALL.md) | En cours |
 
 ## Lancer le projet
@@ -53,4 +53,26 @@ PFE Challenge EMC, sujet 1. Symfony 7.4, PHP 8.2+, MySQL 8.
   - Barre d'évaluation supérieure permettant de basculer instantanément entre les profils `ADMIN`, `CASHIER` et `CLIENT`.
   - **Dashboard Administrateur (`/admin`)** : Chiffre d'affaires en MAD, taux d'occupation par spectacle, création de spectacles/coupons et annulation avec remboursement en cascade.
   - **Guichet POS & Contrôle d'Accès (`/cashier`)** : Simulateur de scanner de QR code en direct vérifiant la validité des billets à l'entrée de la salle.
+
+## Synchronisation Google Sheets (Niveau 4)
+
+Les ventes sont enregistrées dans un outbox transactionnel avec les actions `SOLD` et `REFUNDED`.
+La commande `app:sync-google-sheets` lit les messages non traités et les ajoute automatiquement dans
+un onglet `Ventes`. Une erreur est journalisée et le message reste non traité pour la prochaine exécution.
+
+Configuration locale, sans committer de secret :
+
+```dotenv
+GOOGLE_SERVICE_ACCOUNT_JSON=/app/var/secrets/google-service-account.json
+GOOGLE_SHEETS_TITLE="Théâtre Royal — Ventes"
+GOOGLE_SHEETS_DIRECTOR_EMAIL=direction@example.com
+```
+
+Le compte de service doit avoir accès aux APIs Google Sheets et Drive. Le premier traitement crée la
+feuille, ajoute les colonnes, puis la partage avec l'adresse de la direction. Pour une exécution
+automatique, planifier la commande toutes les minutes :
+
+```cron
+* * * * * docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
+```
 

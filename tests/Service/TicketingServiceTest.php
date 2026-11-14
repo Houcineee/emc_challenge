@@ -6,6 +6,7 @@ namespace App\Tests\Service;
 
 use App\Entity\Coupon;
 use App\Entity\Event;
+use App\Entity\OutboxMessage;
 use App\Entity\Seat;
 use App\Entity\Ticket;
 use App\Entity\User;
@@ -90,6 +91,13 @@ class TicketingServiceTest extends KernelTestCase
         // Price calculation assertion: basePrice * (100 + multiplier) / 100
         $expectedPrice = (int) round($event->getBasePriceCents() * (100 + $seat->getZone()->getPriceMultiplierPercent()) / 100);
         $this->assertSame($expectedPrice, $ticket->getFinalPriceCents());
+
+        $outboxMessage = $this->em->getRepository(OutboxMessage::class)->findOneBy([
+            'eventType' => 'TICKET_SOLD',
+            'aggregateId' => $ticket->getId(),
+        ]);
+        $this->assertNotNull($outboxMessage);
+        $this->assertSame('SOLD', $outboxMessage->getPayload()['action']);
 
         // Redis hold must be deleted after purchase
         $this->assertCount(0, $this->seatHoldService->getUserActiveHolds($event, $user));
