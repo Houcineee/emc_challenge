@@ -35,3 +35,4 @@
 - **Branche active** : `feature/level-3-frontend-3d`.
 - **Tests automatisés** : 21 tests PHPUnit / 125 assertions au vert (100%).
 - **Toutes les routes testées** : `/`, `/events/1`, `/checkout`, `/tickets/my`, `/login`, `/admin`, `/cashier` retournent HTTP 200.
+
