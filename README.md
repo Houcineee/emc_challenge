@@ -105,6 +105,16 @@ Pour une exécution automatique, planifier la commande toutes les minutes :
 * * * * * docker compose exec -T app php bin/console app:sync-google-sheets --no-interaction
 ```
 
+En local avec Docker Compose, le service `scheduler` lance automatiquement cette synchronisation
+toutes les minutes. Il suffit de démarrer la stack :
+
+```bash
+docker compose up -d
+docker compose logs -f scheduler
+```
+
+La ligne cron ci-dessus reste utile pour un déploiement VPS sans service Docker dédié.
+
 ### Dépannage
 
 Si la commande affiche une erreur `Google Sheets API has not been used in project ... or it is
