@@ -27,6 +27,10 @@ Application : <http://localhost:8000>
 
 Guide complet : [`INSTALL.md`](INSTALL.md)
 
+## Aperçu
+
+![Dashboard Théâtre Royal](docs/screenshots/dashboard.png)
+
 ## Comptes de démonstration
 
 | Rôle | Email | Mot de passe |
