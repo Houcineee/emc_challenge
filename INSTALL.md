@@ -40,11 +40,53 @@ The demo credentials are:
 
 Google Sheets is optional for running the application. To enable it:
 
-1. Enable Google Sheets API and Google Drive API in Google Cloud.
-2. Create a service account and download its JSON key.
-3. Save the key as `var/secrets/google-service-account.json`.
-4. Share the target spreadsheet with the service-account email as **Editor**.
-5. Add these values to `.env.local`:
+### 1. Create a Google Cloud project
+
+1. Open <https://console.cloud.google.com/>.
+2. Create a project or select an existing one.
+3. Make sure that project is selected in the top navigation.
+
+### 2. Enable the Google APIs
+
+Open **APIs & Services > Library** and enable both:
+
+- **Google Sheets API**
+- **Google Drive API**
+
+They must be enabled in the same project used by the service-account JSON file.
+
+### 3. Create and download the service-account key
+
+1. Open **IAM & Admin > Service Accounts**.
+2. Click **Create Service Account**.
+3. Give it a name, for example `theatre-sheets-sync`.
+4. Click **Done**. Project roles are not required for this integration.
+5. Open the new service account and select the **Keys** tab.
+6. Click **Add Key > Create new key > JSON > Create**.
+7. Google downloads a JSON file. Keep it private.
+
+Do not commit this file or paste it into chat. Place it in the project at:
+
+```text
+var/secrets/google-service-account.json
+```
+
+### 4. Give the service account access to the spreadsheet
+
+Open the target Google Sheet and click **Share**. Copy the service-account email from the JSON
+field `client_email`, then add it as an **Editor**.
+
+The application uses an existing spreadsheet through its ID. For this URL:
+
+```text
+https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+```
+
+the value of `GOOGLE_SHEETS_ID` is `SPREADSHEET_ID`.
+
+### 5. Configure the application
+
+Add these values to `.env.local`:
 
 ```dotenv
 GOOGLE_SERVICE_ACCOUNT_JSON=/app/var/secrets/google-service-account.json
@@ -52,6 +94,9 @@ GOOGLE_SHEETS_ID=your_spreadsheet_id
 GOOGLE_SHEETS_TITLE="Théâtre Royal — Ventes"
 GOOGLE_SHEETS_DIRECTOR_EMAIL=direction@example.com
 ```
+
+`GOOGLE_SHEETS_DIRECTOR_EMAIL` is optional when using an existing sheet. The service account must
+still have **Editor** access to that sheet.
 
 Restart the stack after changing `.env.local`:
 
