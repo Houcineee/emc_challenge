@@ -42,6 +42,8 @@ Guide complet : [`INSTALL.md`](INSTALL.md)
 
 ## Aperçu
 
+![La Salle & L'Acoustique — Architecture](docs/screenshots/theatre_acoustique.jpg)
+
 ![Dashboard Théâtre Royal](docs/screenshots/dashboard.png)
 
 ## Comptes de démonstration
