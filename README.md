@@ -1,8 +1,21 @@
 # Théâtre Royal
 
-Application de billetterie Symfony 7.4 pour une salle de spectacle de 400 places.
+> **EMC Challenge PFE 2026** — **Sujet 1 : Billetterie d'une salle de spectacle (400 places)**  
+> Application web complète sous Symfony 7.4, MySQL 8, Redis, Three.js et Docker.
 
-## Niveaux
+## Documentation et livrables attendus
+
+| Livrable | Description | Lien |
+|---|---|---|
+| **Note conceptuelle** | Approche de conception, arbitrages, place de l'IA et vision (PDF) | [`docs/note_conceptuelle.pdf`](docs/note_conceptuelle.pdf) |
+| **Modèle de données** | Schéma 3NF, diagramme Mermaid et justification des choix | [`docs/MODELE.md`](docs/MODELE.md) |
+| **Journal des décisions** | Réponses aux 5 questions à trancher et historique des choix techniques | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
+| **Journal IA** | Traces d'utilisation de l'IA, corrections humaines et transcripts de sessions | [`docs/ai-log/`](docs/ai-log/) |
+| **Tests automatisés** | Suite PHPUnit couvrant concurrence, verrous Redis et API (21 tests, 125 assertions) | [`tests/`](tests/) |
+| **Variables d'environnement** | Exemple documenté sans aucun secret | [`.env.example`](.env.example) |
+| **Guide de déploiement** | Procédure d'installation Docker en une commande | [`INSTALL.md`](INSTALL.md) |
+
+## Niveaux atteints
 
 | Niveau | Thème | État |
 |---|---|---|
@@ -47,4 +60,11 @@ Guide complet : [`INSTALL.md`](INSTALL.md)
 - Billets PDF avec QR code, espace client et contrôle cashier.
 - Tableaux de bord administrateur et guichetier.
 - Synchronisation automatique des ventes et remboursements vers Google Sheets.
+
+## Ce qui reste à faire (Perspectives)
+
+- **Tests de charge :** scénarios Gatling / k6 simulant l'ouverture de billetterie sous haute concurrence.
+- **Passerelle bancaire réelle :** intégration Stripe Elements en complément de la simulation actuelle.
+- **Outbox distribué :** passage de la table MySQL outbox à Apache Kafka pour multiplier les consommateurs analytiques.
+- **Accessibilité :** conformité WCAG sur les contrôles alternatifs au plan 3D WebGL.
 
