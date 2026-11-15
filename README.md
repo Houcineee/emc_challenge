@@ -41,10 +41,10 @@ Application : <http://localhost:8000>
 Guide complet : [`INSTALL.md`](INSTALL.md)
 
 ## Aperçu
-
+![Dashboard Théâtre Royal](docs/screenshots/dashboard.png)
 ![La Salle & L'Acoustique — Architecture](docs/screenshots/theatre_acoustique.jpg)
 
-![Dashboard Théâtre Royal](docs/screenshots/dashboard.png)
+
 
 ## Comptes de démonstration
 
